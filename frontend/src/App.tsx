@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Routes, Route } from "react-router-dom";
 import FortressPage from "@/pages/FortressPage";
 import HistoryPage from "@/pages/HistoryPage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -23,7 +24,7 @@ export default function App() {
   const [infoOpen, setInfoOpen] = useState(false);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--bg)" }}>
+    <div className="min-h-dvh flex flex-col" style={{ backgroundColor: "var(--bg)" }}>
       <header
         className="border-b sticky top-0 z-10 backdrop-blur-sm"
         style={{
@@ -62,10 +63,11 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-screen-xl mx-auto px-6 py-8">
+      <main className="flex-1 max-w-screen-xl w-full mx-auto px-6 py-8">
         <Routes>
           <Route path="/" element={<FortressPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
 
