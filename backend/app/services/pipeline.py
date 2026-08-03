@@ -17,14 +17,33 @@ log = logging.getLogger("finora")
 
 _screen_lock = asyncio.Lock()
 
+_status: dict = {
+    "running": False,
+    "run_id": None,
+    "current_ticker": None,
+    "processed": 0,
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "log": [],
+}
+
+
+def get_status() -> dict:
+    return {**_status, "log": list(_status["log"])}
+
 
 async def run_screen(app: FastAPI) -> None:
+    global _status
+
     if _screen_lock.locked():
         log.warning("Screen already running, skipping.")
         return
 
     async with _screen_lock:
         run = await db.save_run(ScreeningRun(trigger="cron"))
+        _status = {"running": True, "run_id": run.id, "current_ticker": None,
+                   "processed": 0, "total": 0, "passed": 0, "failed": 0, "log": []}
         log.info("[Run %d] Starting full screen.", run.id)
         try:
             from app.screener.obb_client import UNIVERSE
@@ -32,11 +51,31 @@ async def run_screen(app: FastAPI) -> None:
             await db.update_run(run.id, quant_survivors=len(survivors), total_screened=len(UNIVERSE))
             log.info("[Run %d] Quant survivors: %d, bypass: %d.", run.id, len(survivors), len(bypassed))
 
+            all_stocks = survivors + bypassed
+            _status["total"] = len(all_stocks)
+
             final_passes = 0
-            for stock in survivors + bypassed:
+            for stock in all_stocks:
+                _status["current_ticker"] = stock["ticker"]
                 analysis = await _analyze_one(run.id, stock, app)
-                if analysis.passes_moat:
+
+                if analysis.rejection_reason == "No 10-K available on SEC EDGAR":
+                    verdict = "NO_FILING"
+                elif analysis.passes_moat:
+                    verdict = "PASS"
+                    _status["passed"] += 1
                     final_passes += 1
+                else:
+                    verdict = "FAIL"
+                    _status["failed"] += 1
+
+                _status["processed"] += 1
+                _status["log"].append({
+                    "ticker": stock["ticker"],
+                    "verdict": verdict,
+                    "bypass": stock.get("quant_bypass", False),
+                    "reason": analysis.rejection_reason,
+                })
 
             await db.update_run(run.id, final_passes=final_passes, status="completed")
             log.info("[Run %d] Done — %d fortress assets.", run.id, final_passes)
@@ -47,6 +86,9 @@ async def run_screen(app: FastAPI) -> None:
         except Exception as e:
             log.error("[Run %d] Failed: %s", run.id, e)
             await db.update_run(run.id, status="failed", error=str(e))
+        finally:
+            _status["running"] = False
+            _status["current_ticker"] = None
 
 
 async def _analyze_one(run_id: int, stock: dict, app: FastAPI) -> StockAnalysis:

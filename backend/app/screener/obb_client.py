@@ -9,9 +9,12 @@ import httpx
 from app.core.config import settings
 
 _BASE = "https://financialmodelingprep.com/stable"
-_client = httpx.AsyncClient(timeout=30.0)
 
-UNIVERSE: list[str] = ["INTC"]
+
+def _new_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=30.0, limits=httpx.Limits(max_keepalive_connections=10))
+
+UNIVERSE: list[str] = ["MSFT", "UNH"]
 
 
 def _p(**kwargs) -> dict:
@@ -24,13 +27,13 @@ async def screen_equities(
 ) -> list[dict]:
     async def fetch_one(symbol: str) -> dict | None:
         try:
-            r = await _client.get(f"{_BASE}/profile", params=_p(symbol=symbol))
+            async with _new_client() as client:
+                r = await client.get(f"{_BASE}/profile", params=_p(symbol=symbol))
             r.raise_for_status()
             data = r.json()
             if not data:
                 return None
             p = data[0] if isinstance(data, list) else data
-            # Skip ETFs and funds — ratios-ttm doesn't cover them
             if p.get("isEtf") or p.get("isFund"):
                 return None
             mc = p.get("marketCap") or 0
@@ -51,7 +54,8 @@ async def screen_equities(
 
 
 async def get_metrics(symbol: str) -> dict:
-    r = await _client.get(f"{_BASE}/ratios-ttm", params=_p(symbol=symbol))
+    async with _new_client() as client:
+        r = await client.get(f"{_BASE}/ratios-ttm", params=_p(symbol=symbol))
     if r.status_code in (402, 403):
         return {}
     r.raise_for_status()
@@ -71,7 +75,8 @@ async def get_metrics(symbol: str) -> dict:
 
 
 async def get_profile(symbol: str) -> dict:
-    r = await _client.get(f"{_BASE}/profile", params=_p(symbol=symbol))
+    async with _new_client() as client:
+        r = await client.get(f"{_BASE}/profile", params=_p(symbol=symbol))
     r.raise_for_status()
     data = r.json()
     if not data:
@@ -89,9 +94,10 @@ async def get_profile(symbol: str) -> dict:
 
 
 async def get_cash_flow(symbol: str, limit: int = 5) -> list[dict]:
-    r = await _client.get(
-        f"{_BASE}/cash-flow-statement",
-        params=_p(symbol=symbol, limit=limit),
-    )
+    async with _new_client() as client:
+        r = await client.get(
+            f"{_BASE}/cash-flow-statement",
+            params=_p(symbol=symbol, limit=limit),
+        )
     r.raise_for_status()
     return [{"free_cash_flow": cf.get("freeCashFlow", 0)} for cf in (r.json() or [])]

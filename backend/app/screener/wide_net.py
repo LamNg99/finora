@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import traceback
 from app.screener import obb_client
 
 log = logging.getLogger("finora")
@@ -42,7 +43,7 @@ async def run_wide_net() -> tuple[list[dict], list[dict]]:
                 else:
                     log.info("[WideNet] %s → REJECT (%s)", ticker, reason)
             except Exception as e:
-                log.warning("[WideNet] %s → ERROR: %s", ticker, e)
+                log.warning("[WideNet] %s → ERROR: %s: %s\n%s", ticker, type(e).__name__, e, traceback.format_exc())
 
     await asyncio.gather(*[evaluate(c) for c in candidates])
     return survivors, bypassed

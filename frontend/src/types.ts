@@ -57,3 +57,21 @@ export interface ScreeningRun {
   status: "running" | "completed" | "failed";
   error: string | null;
 }
+
+export interface RunLogEntry {
+  ticker: string;
+  verdict: "PASS" | "FAIL" | "NO_FILING";
+  bypass: boolean;
+  reason: string | null;
+}
+
+export interface RunStatus {
+  running: boolean;
+  run_id: number | null;
+  current_ticker: string | null;
+  processed: number;
+  total: number;
+  passed: number;
+  failed: number;
+  log: RunLogEntry[];
+}
