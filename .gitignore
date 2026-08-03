@@ -1,0 +1,15 @@
+# System files
+.DS_Store
+.vscode
+**/__pycache__/
+**/.pytest_cache/
+
+# Claude 
+CLAUDE.md
+.claude
+
+# Project files
+backend/.env
+backend/venv
+frontend/node_modules
+frontend/dist
