@@ -60,7 +60,7 @@ export interface ScreeningRun {
 
 export interface RunLogEntry {
   ticker: string;
-  verdict: "PASS" | "FAIL" | "NO_FILING";
+  verdict: "PASS" | "FAIL" | "NO_FILING" | "QUANT_REJECT";
   bypass: boolean;
   reason: string | null;
 }

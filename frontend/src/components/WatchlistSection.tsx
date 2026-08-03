@@ -5,6 +5,10 @@ import Pagination from "@/components/Pagination";
 
 const PAGE_SIZE = 10;
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function WatchlistSection({ stocks }: { stocks: StockAnalysis[] }) {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -101,6 +105,9 @@ function WatchRow({ stock, last }: { stock: StockAnalysis; last: boolean }) {
     <tr style={{ borderBottom: last ? "none" : "1px solid var(--border)" }}>
       <td className="px-4 py-3.5 font-mono font-bold text-sm" style={{ color: "var(--accent)" }}>
         {stock.ticker}
+        <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
+          {fmtDate(stock.analyzed_at)}
+        </span>
       </td>
       <td className="px-4 py-3.5 text-sm" style={{ color: "var(--text)" }}>
         {stock.company_name}

@@ -243,13 +243,14 @@ function LogEntry({ entry }: { entry: RunLogEntry }) {
     : entry.verdict === "NO_FILING" ? "var(--warn)"
     : "var(--reject)";
   const icon = entry.verdict === "PASS" ? "✓" : entry.verdict === "NO_FILING" ? "—" : "✗";
+  const label = entry.verdict === "QUANT_REJECT" ? "quant" : entry.bypass ? "bypass" : null;
 
   return (
     <div className="flex items-baseline gap-2 text-xs py-0.5">
       <span className="font-mono font-bold w-3 shrink-0 text-center" style={{ color }}>{icon}</span>
       <span className="font-mono font-bold shrink-0" style={{ color: "var(--text)" }}>{entry.ticker}</span>
-      {entry.bypass && (
-        <span className="font-mono text-xs px-1 rounded-sm" style={{ color: "var(--accent)", backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)" }}>bypass</span>
+      {label && (
+        <span className="font-mono text-xs px-1 rounded-sm" style={{ color: "var(--accent)", backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)" }}>{label}</span>
       )}
       {entry.reason && (
         <span className="truncate" style={{ color: "var(--muted)" }}>{entry.reason}</span>

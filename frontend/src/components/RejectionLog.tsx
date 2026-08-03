@@ -6,6 +6,10 @@ import Pagination from "@/components/Pagination";
 
 const PAGE_SIZE = 10;
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function RejectionLog({ stocks }: { stocks: StockAnalysis[] }) {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -45,9 +49,9 @@ export default function RejectionLog({ stocks }: { stocks: StockAnalysis[] }) {
               className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
               style={{ color: "var(--reject)", backgroundColor: "color-mix(in srgb, var(--reject) 12%, transparent)" }}
             >
-              {count} Value {count === 1 ? "Trap" : "Traps"}
+              {count} {count === 1 ? "Rejection" : "Rejections"}
             </span>
-            <span className="text-xs" style={{ color: "var(--muted)" }}>Passed quant · Failed LLM moat analysis</span>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>Failed quant filter or LLM moat analysis</span>
           </div>
           <ChevronIcon />
         </Accordion.Trigger>
@@ -108,13 +112,30 @@ export default function RejectionLog({ stocks }: { stocks: StockAnalysis[] }) {
   );
 }
 
+function VerdictChip({ pass, label }: { pass: boolean; label: string }) {
+  const color = pass ? "var(--pass)" : "var(--reject)";
+  return (
+    <span
+      className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
+      style={{ color, backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)` }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function RejectionRow({ stock, last }: { stock: StockAnalysis; last: boolean }) {
-  const risk = stock.moat?.primary_disruption_risk ?? stock.rejection_reason ?? "—";
+  const risk = stock.passes_quant
+    ? (stock.moat?.primary_disruption_risk ?? stock.rejection_reason ?? "—")
+    : (stock.rejection_reason ?? "Failed quant filter");
 
   return (
     <tr style={{ borderBottom: last ? "none" : "1px solid var(--border)", backgroundColor: "var(--surface)" }}>
       <td className="px-4 py-3 font-mono font-bold text-sm" style={{ color: "var(--reject)" }}>
         {stock.ticker}
+        <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
+          {fmtDate(stock.analyzed_at)}
+        </span>
       </td>
       <td className="px-4 py-3 text-sm" style={{ color: "var(--text)" }}>
         {stock.company_name}
@@ -135,20 +156,13 @@ function RejectionRow({ stock, last }: { stock: StockAnalysis; last: boolean }) 
         {stock.dividend_yield > 0 ? `${(stock.dividend_yield * 100).toFixed(2)}%` : "—"}
       </td>
       <td className="px-4 py-3">
-        <span
-          className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
-          style={{ color: "var(--pass)", backgroundColor: "color-mix(in srgb, var(--pass) 12%, transparent)" }}
-        >
-          ✓ PASS
-        </span>
+        <VerdictChip pass={stock.passes_quant} label={stock.passes_quant ? "✓ PASS" : "✗ FAIL"} />
       </td>
       <td className="px-4 py-3">
-        <span
-          className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
-          style={{ color: "var(--reject)", backgroundColor: "color-mix(in srgb, var(--reject) 12%, transparent)" }}
-        >
-          ✗ FAILED
-        </span>
+        {stock.passes_quant
+          ? <VerdictChip pass={false} label="✗ FAILED" />
+          : <span className="font-mono text-xs" style={{ color: "var(--muted)" }}>—</span>
+        }
       </td>
       <td className="px-4 py-3 max-w-sm text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
         {risk}

@@ -33,7 +33,7 @@ def get_status() -> dict:
     return {**_status, "log": list(_status["log"])}
 
 
-async def run_screen(app: FastAPI) -> None:
+async def run_screen(app: FastAPI, tickers: list[str] | None = None) -> None:
     global _status
 
     if _screen_lock.locked():
@@ -47,12 +47,52 @@ async def run_screen(app: FastAPI) -> None:
         log.info("[Run %d] Starting full screen.", run.id)
         try:
             from app.screener.obb_client import UNIVERSE
-            survivors, bypassed = await run_wide_net()
-            await db.update_run(run.id, quant_survivors=len(survivors), total_screened=len(UNIVERSE))
-            log.info("[Run %d] Quant survivors: %d, bypass: %d.", run.id, len(survivors), len(bypassed))
+            effective_universe = tickers if tickers else UNIVERSE
+            survivors, bypassed, quant_rejected = await run_wide_net(tickers=effective_universe)
+            await db.update_run(run.id, quant_survivors=len(survivors), total_screened=len(effective_universe))
+            log.info("[Run %d] Quant survivors: %d, bypass: %d, rejected: %d.", run.id, len(survivors), len(bypassed), len(quant_rejected))
+
+            # Save quant-rejected stocks immediately — no LLM needed
+            for stock in quant_rejected:
+                rejected_analysis = StockAnalysis(
+                    run_id=run.id,
+                    ticker=stock["ticker"],
+                    company_name=stock.get("company_name", ""),
+                    sector=stock.get("sector", ""),
+                    current_price=stock.get("current_price", 0.0),
+                    market_cap=stock.get("market_cap", 0.0),
+                    pe_ratio=stock.get("pe_ratio", 0.0),
+                    dividend_yield=stock.get("dividend_yield", 0.0),
+                    debt_to_equity=stock.get("debt_to_equity", 0.0),
+                    fcf_per_share=stock.get("fcf_per_share", 0.0),
+                    passes_quant=False,
+                    quant_bypass=False,
+                    passes_moat=False,
+                    rejection_reason=stock.get("rejection_reason", "Failed quant filter"),
+                )
+                try:
+                    rejected_analysis.valuation = await estimate_fair_value(
+                        ticker=stock["ticker"],
+                        current_price=stock.get("current_price", 0.0),
+                        fcf_per_share=stock.get("fcf_per_share", 0.0),
+                        eps=stock.get("eps", 0.0),
+                        book_value_per_share=stock.get("book_value_per_share", 0.0),
+                        market_cap=stock.get("market_cap", 0.0),
+                    )
+                except Exception:
+                    pass
+                await db.save_analysis(rejected_analysis)
+                _status["failed"] += 1
+                _status["log"].append({
+                    "ticker": stock["ticker"],
+                    "verdict": "QUANT_REJECT",
+                    "bypass": False,
+                    "reason": stock.get("rejection_reason"),
+                })
 
             all_stocks = survivors + bypassed
-            _status["total"] = len(all_stocks)
+            _status["total"] = len(all_stocks) + len(quant_rejected)
+            _status["processed"] = len(quant_rejected)
 
             final_passes = 0
             for stock in all_stocks:

@@ -10,11 +10,15 @@ from app.core.config import settings
 
 _BASE = "https://financialmodelingprep.com/stable"
 
+# Set to True on first 402/403 — endpoint is behind a paywall for this key.
+# All subsequent calls skip the request for the lifetime of the process.
+_cash_flow_unavailable = False
+
 
 def _new_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=30.0, limits=httpx.Limits(max_keepalive_connections=10))
 
-UNIVERSE: list[str] = ["MSFT", "UNH"]
+UNIVERSE: list[str] = ["ORCL"]
 
 
 def _p(**kwargs) -> dict:
@@ -22,9 +26,12 @@ def _p(**kwargs) -> dict:
 
 
 async def screen_equities(
+    tickers: list[str] | None = None,
     market_cap_min: float = 1_000_000_000,
     limit: int = 300,
 ) -> list[dict]:
+    symbols = tickers if tickers is not None else UNIVERSE
+
     async def fetch_one(symbol: str) -> dict | None:
         try:
             async with _new_client() as client:
@@ -49,8 +56,10 @@ async def screen_equities(
         except Exception:
             return None
 
-    results = await asyncio.gather(*[fetch_one(s) for s in UNIVERSE])
+    results = await asyncio.gather(*[fetch_one(s) for s in symbols])
     return [r for r in results if r is not None][:limit]
+
+
 
 
 async def get_metrics(symbol: str) -> dict:
@@ -94,10 +103,16 @@ async def get_profile(symbol: str) -> dict:
 
 
 async def get_cash_flow(symbol: str, limit: int = 5) -> list[dict]:
+    global _cash_flow_unavailable
+    if _cash_flow_unavailable:
+        return []
     async with _new_client() as client:
         r = await client.get(
             f"{_BASE}/cash-flow-statement",
             params=_p(symbol=symbol, limit=limit),
         )
+    if r.status_code in (402, 403):
+        _cash_flow_unavailable = True
+        return []
     r.raise_for_status()
     return [{"free_cash_flow": cf.get("freeCashFlow", 0)} for cf in (r.json() or [])]

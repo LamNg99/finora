@@ -4,12 +4,14 @@ import KPISection from "@/components/KPISection";
 import AIInbox from "@/components/AIInbox";
 import RejectionLog from "@/components/RejectionLog";
 import WatchlistSection from "@/components/WatchlistSection";
+import TriggerDialog from "@/components/TriggerDialog";
 
 export default function FortressPage() {
   const [latestRun, setLatestRun] = useState<ScreeningRun | null>(null);
   const [stocks, setStocks] = useState<StockAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     load();
@@ -29,22 +31,16 @@ export default function FortressPage() {
     setLoading(false);
   }
 
-  async function triggerScreen() {
+  function onScreenStarted() {
     setTriggering(true);
-    try {
-      await fetch("/api/trigger", { method: "POST" });
-      // Poll after a delay to catch the completed run
-      setTimeout(async () => {
-        await load();
-        setTriggering(false);
-      }, 8000);
-    } catch (_) {
+    setTimeout(async () => {
+      await load();
       setTriggering(false);
-    }
+    }, 8000);
   }
 
   const passed = stocks.filter((s) => s.passes_moat && !s.quant_bypass);
-  const rejected = stocks.filter((s) => s.passes_quant && !s.passes_moat);
+  const rejected = stocks.filter((s) => !s.passes_moat && !s.quant_bypass);
   const watchlist = stocks.filter((s) => s.quant_bypass);
 
   return (
@@ -60,22 +56,12 @@ export default function FortressPage() {
           </p>
         </div>
         <button
-          onClick={triggerScreen}
+          onClick={() => setDialogOpen(true)}
           disabled={triggering}
           className="flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-semibold transition-opacity disabled:opacity-50"
-          style={{
-            backgroundColor: "var(--accent)",
-            color: "#fff",
-          }}
+          style={{ backgroundColor: "var(--accent)", color: "#fff" }}
         >
-          {triggering ? (
-            <>
-              <Spinner />
-              Running…
-            </>
-          ) : (
-            "Run Screen Now"
-          )}
+          {triggering ? <><Spinner />Running…</> : "Analyze Stocks"}
         </button>
       </div>
 
@@ -99,6 +85,13 @@ export default function FortressPage() {
       {/* 4 — Rejection Log */}
       <SectionDivider label="Rejection Log" />
       <RejectionLog stocks={rejected} />
+
+      {dialogOpen && (
+        <TriggerDialog
+          onClose={() => setDialogOpen(false)}
+          onStarted={onScreenStarted}
+        />
+      )}
     </div>
   );
 }

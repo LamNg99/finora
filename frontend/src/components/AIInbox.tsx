@@ -5,6 +5,10 @@ import Pagination from "@/components/Pagination";
 
 const PAGE_SIZE = 10;
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function AIInbox({ stocks }: { stocks: StockAnalysis[] }) {
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -130,6 +134,9 @@ function InboxRow({ stock, last }: { stock: StockAnalysis; last: boolean }) {
         <td className="px-4 py-3.5 align-top">
           <span className="font-mono font-bold text-sm tracking-tight" style={{ color: "var(--pass)" }}>
             {stock.ticker}
+          </span>
+          <span className="block text-xs mt-0.5 font-mono tabular-nums" style={{ color: "var(--muted)" }}>
+            {fmtDate(stock.analyzed_at)}
           </span>
         </td>
         <td className="px-4 py-3.5 align-top">

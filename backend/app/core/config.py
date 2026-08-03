@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     cron_hour: int = 20
     cron_minute: int = 0
     webhook_url: str = ""
+    trigger_api_key: list[str]
 
     class Config:
         env_file = ".env"
