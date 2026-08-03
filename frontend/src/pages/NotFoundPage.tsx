@@ -70,8 +70,8 @@ export default function NotFoundPage() {
 
         {/* Stats row */}
         <div
-          className="grid grid-cols-3 divide-x px-0 py-3"
-          style={{ borderTop: "1px solid var(--border)", divideColor: "var(--border)" }}
+          className="grid grid-cols-3 divide-x divide-[var(--border)] px-0 py-3"
+          style={{ borderTop: "1px solid var(--border)" }}
         >
           {[
             { label: "Market Cap", value: "$0" },

@@ -71,6 +71,12 @@ jobs:
           rsync -az --delete frontend/dist/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/finora/
 
+      - name: Sync compose file to server
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ~/finora"
+          rsync -az deployment/docker-compose.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/finora/docker-compose.yml
+
       - name: Pull image and restart api
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
