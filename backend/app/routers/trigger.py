@@ -10,6 +10,7 @@ router = APIRouter()
 
 class TriggerBody(BaseModel):
     tickers: list[str] = []
+    model: str | None = None
 
 
 def _check_key(api_key: Optional[str]) -> None:
@@ -27,5 +28,5 @@ async def manual_trigger(
 ):
     _check_key(x_api_key)
     tickers = [t.upper().strip() for t in body.tickers if t.strip()] or None
-    background_tasks.add_task(run_screen, request.app, tickers)
+    background_tasks.add_task(run_screen, request.app, tickers, body.model)
     return {"status": "started"}

@@ -33,7 +33,7 @@ def get_status() -> dict:
     return {**_status, "log": list(_status["log"])}
 
 
-async def run_screen(app: FastAPI, tickers: list[str] | None = None) -> None:
+async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str | None = None) -> None:
     global _status
 
     if _screen_lock.locked():
@@ -97,7 +97,7 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None) -> None:
             final_passes = 0
             for stock in all_stocks:
                 _status["current_ticker"] = stock["ticker"]
-                analysis = await _analyze_one(run.id, stock, app)
+                analysis = await _analyze_one(run.id, stock, app, model)
 
                 if analysis.rejection_reason == "No 10-K available on SEC EDGAR":
                     verdict = "NO_FILING"
@@ -131,7 +131,7 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None) -> None:
             _status["current_ticker"] = None
 
 
-async def _analyze_one(run_id: int, stock: dict, app: FastAPI) -> StockAnalysis:
+async def _analyze_one(run_id: int, stock: dict, app: FastAPI, model: str | None = None) -> StockAnalysis:
     ticker = stock["ticker"]
     bypass = stock.get("quant_bypass", False)
     analysis = StockAnalysis(
@@ -168,6 +168,7 @@ async def _analyze_one(run_id: int, stock: dict, app: FastAPI) -> StockAnalysis:
         return await db.save_analysis(analysis)
 
     try:
+        effective_model = model or settings.model
         report = await analyze_moat(
             ticker=ticker,
             company_name=stock.get("company_name", ""),
@@ -176,11 +177,12 @@ async def _analyze_one(run_id: int, stock: dict, app: FastAPI) -> StockAnalysis:
             pe_ratio=stock.get("pe_ratio", 0.0),
             dividend_yield=stock.get("dividend_yield", 0.0),
             filing_text=filing_text,
+            model=effective_model,
         )
         analysis.passes_moat = report.passes_moat_filter
         analysis.rejection_reason = report.rejection_reason
         analysis.moat_report = report.model_dump()
-        analysis.llm_model = settings.model
+        analysis.llm_model = effective_model
     except Exception as e:
         analysis.rejection_reason = f"LLM error: {e}"
 

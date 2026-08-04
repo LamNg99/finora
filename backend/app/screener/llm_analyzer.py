@@ -51,6 +51,7 @@ async def analyze_moat(
     pe_ratio: float,
     dividend_yield: float,
     filing_text: str,
+    model: str | None = None,
 ) -> MoatAnalysisReport:
     client = instructor.from_openai(
         AsyncOpenAI(base_url=settings.llm_url, api_key=settings.api_key)
@@ -64,7 +65,7 @@ async def analyze_moat(
     )
 
     return await client.chat.completions.create(
-        model=settings.model,
+        model=model or settings.model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},

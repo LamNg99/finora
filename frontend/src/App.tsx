@@ -79,7 +79,18 @@ export default function App() {
           </p>
           <div className="shrink-0 text-right">
             <p className="font-mono font-bold text-sm" style={{ color: "var(--accent)" }}>Finora</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>Engineered by Lam</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+              Engineered by{" "}
+              <a
+                href="https://ngtlam.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold hover:opacity-70 transition-opacity"
+                style={{ color: "var(--text)" }}
+              >
+                Lam
+              </a>
+            </p>
           </div>
         </div>
       </footer>

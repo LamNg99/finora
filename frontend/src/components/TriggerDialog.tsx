@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SUPPORTED_TICKERS } from "../data/tickers";
+import { AVAILABLE_MODELS, DEFAULT_MODEL } from "../data/models";
 
 interface Props {
   onClose: () => void;
@@ -8,6 +9,9 @@ interface Props {
 
 export default function TriggerDialog({ onClose, onStarted }: Props) {
   const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState(DEFAULT_MODEL);
+  const [modelOpen, setModelOpen] = useState(false);
+  const modelRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
@@ -16,13 +20,18 @@ export default function TriggerDialog({ onClose, onStarted }: Props) {
 
   useEffect(() => {
     function onKey(e: globalThis.KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") { setModelOpen(false); onClose(); }
+    }
+    function onClickOutside(e: MouseEvent) {
+      if (modelRef.current && !modelRef.current.contains(e.target as Node)) setModelOpen(false);
     }
     document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClickOutside);
     document.body.style.overflow = "hidden";
     searchRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClickOutside);
       document.body.style.overflow = "";
     };
   }, [onClose]);
@@ -58,7 +67,7 @@ export default function TriggerDialog({ onClose, onStarted }: Props) {
       const res = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(apiKey ? { "X-API-Key": apiKey } : {}) },
-        body: JSON.stringify({ tickers: Array.from(selected) }),
+        body: JSON.stringify({ tickers: Array.from(selected), model }),
       });
       if (res.status === 403) { setSubmitError("Invalid API key."); setSubmitting(false); return; }
       if (!res.ok) { setSubmitError("Failed to start screen."); setSubmitting(false); return; }
@@ -107,6 +116,69 @@ export default function TriggerDialog({ onClose, onStarted }: Props) {
               className="w-full text-sm px-3 py-2 rounded-sm border outline-none"
               style={{ backgroundColor: "var(--surface2)", borderColor: "var(--border)", color: "var(--text)" }}
             />
+          </div>
+
+          {/* Model selector */}
+          <div className="shrink-0 relative" ref={modelRef}>
+            <label className="block text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--muted)" }}>
+              Model
+            </label>
+            <button
+              onClick={() => setModelOpen((v) => !v)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-sm border text-sm"
+              style={{ backgroundColor: "var(--surface2)", borderColor: "var(--border)", color: "var(--text)" }}
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold truncate">{AVAILABLE_MODELS.find((m) => m.id === model)?.label}</span>
+                <span className="flex gap-1 shrink-0">
+                  {AVAILABLE_MODELS.find((m) => m.id === model)?.tags.map((tag) => (
+                    <span key={tag} className="text-xs px-1.5 py-0.5 rounded-sm font-mono" style={{ backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 25%, transparent)" }}>
+                      {tag}
+                    </span>
+                  ))}
+                </span>
+              </span>
+              <ChevronIcon open={modelOpen} />
+            </button>
+
+            {modelOpen && (
+              <div
+                className="absolute z-10 left-0 right-0 mt-1 rounded-sm border overflow-hidden"
+                style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}
+              >
+                {AVAILABLE_MODELS.map((m, i) => {
+                  const active = model === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => { setModel(m.id); setModelOpen(false); }}
+                      className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs transition-colors"
+                      style={{
+                        borderBottom: i < AVAILABLE_MODELS.length - 1 ? "1px solid var(--border)" : "none",
+                        backgroundColor: active ? "color-mix(in srgb, var(--accent) 8%, var(--surface))" : "var(--surface)",
+                      }}
+                    >
+                      <span className="font-semibold w-36 shrink-0 truncate" style={{ color: active ? "var(--accent)" : "var(--text)" }}>
+                        {m.label}
+                      </span>
+                      <div className="ml-auto flex gap-1 shrink-0">
+                        {m.tags.map((tag) => (
+                          <span key={tag} className="px-1.5 py-0.5 rounded-sm font-mono"
+                            style={{
+                              backgroundColor: active ? "color-mix(in srgb, var(--accent) 15%, transparent)" : "color-mix(in srgb, var(--muted) 10%, transparent)",
+                              color: active ? "var(--accent)" : "var(--muted)",
+                              border: `1px solid ${active ? "color-mix(in srgb, var(--accent) 25%, transparent)" : "var(--border)"}`,
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Selected chips */}
@@ -223,6 +295,17 @@ export default function TriggerDialog({ onClose, onStarted }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      className="shrink-0 transition-transform"
+      style={{ color: "var(--muted)", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   );
 }
 
