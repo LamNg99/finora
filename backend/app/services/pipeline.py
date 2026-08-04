@@ -10,6 +10,7 @@ import app.db.database as db
 from app.core.config import settings
 from app.models.models import ScreeningRun, StockAnalysis
 from app.screener.llm_analyzer import analyze_moat
+from app.screener.sedar_client import CANADIAN_TICKERS
 from app.screener.valuation import estimate_fair_value
 from app.screener.wide_net import run_wide_net
 
@@ -99,7 +100,7 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str 
                 _status["current_ticker"] = stock["ticker"]
                 analysis = await _analyze_one(run.id, stock, app, model)
 
-                if analysis.rejection_reason == "No 10-K available on SEC EDGAR":
+                if analysis.rejection_reason and "No annual filing" in analysis.rejection_reason:
                     verdict = "NO_FILING"
                 elif analysis.passes_moat:
                     verdict = "PASS"
@@ -162,9 +163,19 @@ async def _analyze_one(run_id: int, stock: dict, app: FastAPI, model: str | None
         log.warning("[Run %d] Valuation failed for %s: %s", run_id, ticker, e)
 
     sec = getattr(app.state, "sec", None)
-    filing_text = await sec.get_10k_text(ticker) if sec else None
+    sedar = getattr(app.state, "sedar", None)
+    company_name = stock.get("company_name", "")
+
+    if ticker in CANADIAN_TICKERS:
+        # Try SEC first (20-F for cross-listed), fall back to SEDAR+
+        filing_text = await sec.get_10k_text(ticker) if sec else None
+        if not filing_text and sedar:
+            filing_text = await sedar.get_aif_text(ticker, company_name)
+    else:
+        filing_text = await sec.get_10k_text(ticker) if sec else None
+
     if not filing_text:
-        analysis.rejection_reason = "No 10-K available on SEC EDGAR"
+        analysis.rejection_reason = "No annual filing available (SEC EDGAR / SEDAR+)"
         return await db.save_analysis(analysis)
 
     try:

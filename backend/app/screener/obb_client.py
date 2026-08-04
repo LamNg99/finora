@@ -18,7 +18,16 @@ _cash_flow_unavailable = False
 def _new_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=30.0, limits=httpx.Limits(max_keepalive_connections=10))
 
-UNIVERSE: list[str] = ["ORCL"]
+UNIVERSE: list[str] = [
+    # Technology
+    "AAPL", "MSFT", "GOOGL", "ORCL", "META",
+    # Semiconductors
+    "NVDA", "AMD", "INTC", "MU", "SNDK", "QCOM", "AVGO",
+    # Financials
+    "JPM", "V", "MA", "BRK.B",
+    # Consumer
+    "AMZN", "WMT", "COST",
+]
 
 
 def _p(**kwargs) -> dict:

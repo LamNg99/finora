@@ -50,7 +50,7 @@ class SECClient:
         acc_nums = filings.get("accessionNumber", [])
         docs = filings.get("primaryDocument", [])
 
-        priority = {"10-K": 0, "S-1/A": 1, "424B4": 2, "S-1": 3}
+        priority = {"10-K": 0, "40-F": 1, "20-F": 2, "S-1/A": 3, "424B4": 4, "S-1": 5}
         best: Optional[tuple[int, str, str]] = None  # (priority, url, form)
 
         for i, form in enumerate(forms):

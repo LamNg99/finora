@@ -13,6 +13,7 @@ import app.db.database as db
 from app.core.config import settings
 from app.routers import health, trigger, runs, stocks
 from app.screener.sec_client import SECClient
+from app.screener.sedar_client import SedarClient
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("finora")
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
 
     db.create_tables()
     app.state.sec = SECClient()
+    app.state.sedar = SedarClient()
 
     scheduler.add_job(
         run_screen,
@@ -48,6 +50,7 @@ async def lifespan(app: FastAPI):
 
     scheduler.shutdown(wait=False)
     await app.state.sec.close()
+    await app.state.sedar.close()
 
 
 def create_app() -> FastAPI:

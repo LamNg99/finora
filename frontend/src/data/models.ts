@@ -15,11 +15,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     label: "Nemotron 3 Super 120B",
     tags: ["High Reasoning", "Large Context", "Slower"],
   },
-  {
-    id: "gemini-3-flash-agent",
-    label: "Gemini 3 Flash Agent",
-    tags: ["Agentic", "Fast", "Multimodal"],
-  },
 ];
 
 export const DEFAULT_MODEL = AVAILABLE_MODELS[0].id;
