@@ -1,5 +1,5 @@
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 import instructor
 from openai import AsyncOpenAI
 from app.core.config import settings
@@ -33,6 +33,25 @@ class MoatAnalysisReport(BaseModel):
         None, description="One sentence. Required if passes_moat_filter is False."
     )
     confidence: Literal["HIGH", "MEDIUM", "LOW"]
+
+    @model_validator(mode="after")
+    def require_conditional_fields(self) -> "MoatAnalysisReport":
+        if self.passes_moat_filter:
+            if not self.thesis_summary:
+                sources = ", ".join(self.moat_sources[:2]) if self.moat_sources else "competitive advantages"
+                green = self.green_flags[0] if self.green_flags else "strong fundamentals"
+                self.thesis_summary = (
+                    f"{self.competitive_moat.capitalize()} moat supported by {sources}. "
+                    f"{green}. "
+                    f"Management quality rated {self.management_quality.lower()} with {self.confidence.lower()} confidence."
+                )
+        else:
+            if not self.rejection_reason:
+                flags = "; ".join(self.red_flags[:2]) if self.red_flags else "did not meet moat criteria"
+                self.rejection_reason = f"Rejected: {flags}."
+            if not self.primary_disruption_risk:
+                self.primary_disruption_risk = self.rejection_reason
+        return self
 
 
 SYSTEM_PROMPT = """You are a disciplined value investor performing moat analysis on a 10-K filing.

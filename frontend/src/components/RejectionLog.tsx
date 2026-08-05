@@ -125,49 +125,152 @@ function VerdictChip({ pass, label }: { pass: boolean; label: string }) {
 }
 
 function RejectionRow({ stock, last }: { stock: StockAnalysis; last: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const moat = stock.moat;
+  const hasAiDetail = stock.passes_quant && moat != null;
+
   const risk = stock.passes_quant
-    ? (stock.moat?.primary_disruption_risk ?? stock.rejection_reason ?? "—")
+    ? (moat?.primary_disruption_risk ?? stock.rejection_reason ?? "—")
     : (stock.rejection_reason ?? "Failed quant filter");
 
   return (
-    <tr style={{ borderBottom: last ? "none" : "1px solid var(--border)", backgroundColor: "var(--surface)" }}>
-      <td className="px-4 py-3 font-mono font-bold text-sm" style={{ color: "var(--reject)" }}>
-        {stock.ticker}
-        <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
-          {fmtDate(stock.analyzed_at)}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-sm" style={{ color: "var(--text)" }}>
-        {stock.company_name}
-        {stock.sector && (
-          <span className="block text-xs" style={{ color: "var(--muted)" }}>{stock.sector}</span>
+    <>
+      <tr
+        style={{
+          borderBottom: last && !expanded ? "none" : "1px solid var(--border)",
+          backgroundColor: expanded ? "var(--surface2)" : "var(--surface)",
+          cursor: hasAiDetail ? "pointer" : undefined,
+        }}
+        onClick={hasAiDetail ? () => setExpanded((v) => !v) : undefined}
+      >
+        <td className="px-4 py-3 font-mono font-bold text-sm" style={{ color: "var(--reject)" }}>
+          {stock.ticker}
+          <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
+            {fmtDate(stock.analyzed_at)}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-sm" style={{ color: "var(--text)" }}>
+          {stock.company_name}
+          {stock.sector && (
+            <span className="block text-xs" style={{ color: "var(--muted)" }}>{stock.sector}</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+          {stock.current_price > 0 ? `$${stock.current_price.toFixed(2)}` : "—"}
+        </td>
+        <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+          {stock.valuation?.avg_fair_value ? `$${stock.valuation.avg_fair_value.toFixed(2)}` : "—"}
+        </td>
+        <td className="px-4 py-3 text-right">
+          {stock.valuation?.margin_of_safety != null ? <RejMosBadge mos={stock.valuation.margin_of_safety} verdict={stock.valuation.verdict} /> : <span style={{ color: "var(--muted)" }}>—</span>}
+        </td>
+        <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+          {stock.dividend_yield > 0 ? `${(stock.dividend_yield * 100).toFixed(2)}%` : "—"}
+        </td>
+        <td className="px-4 py-3">
+          <VerdictChip pass={stock.passes_quant} label={stock.passes_quant ? "✓ PASS" : "✗ FAIL"} />
+        </td>
+        <td className="px-4 py-3">
+          {stock.passes_quant ? (
+            <div>
+              <VerdictChip pass={false} label="✗ FAILED" />
+              {moat && (
+                <span className="block text-xs mt-1" style={{ color: "var(--muted)" }}>
+                  {moat.competitive_moat} moat · {moat.confidence} confidence
+                  {hasAiDetail && (
+                    <span className="ml-1" style={{ color: "var(--accent)" }}>
+                      {expanded ? "▲" : "▼"}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="font-mono text-xs" style={{ color: "var(--muted)" }}>—</span>
+          )}
+        </td>
+        <td className="px-4 py-3 max-w-sm text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
+          {risk}
+        </td>
+      </tr>
+
+      {expanded && hasAiDetail && (
+        <tr style={{ borderBottom: last ? "none" : "1px solid var(--border)", backgroundColor: "var(--surface2)" }}>
+          <td colSpan={9} className="px-4 pb-5 pt-1">
+            <RejectionDetail moat={moat!} stock={stock} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function RejectionDetail({ moat, stock }: { moat: NonNullable<StockAnalysis["moat"]>; stock: StockAnalysis }) {
+  const score = moat.management_sentiment_score;
+  const scoreColor = score >= 8 ? "var(--pass)" : score >= 5 ? "var(--warn)" : "var(--reject)";
+  const moatColor: Record<string, string> = { WIDE: "var(--pass)", NARROW: "var(--warn)", NONE: "var(--reject)" };
+
+  return (
+    <div className="grid grid-cols-3 gap-6 pt-2">
+      <div className="col-span-2">
+        <p className="text-xs font-mono font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--reject)" }}>
+          AI Rejection Reason
+        </p>
+        <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--text)" }}>
+          {moat.rejection_reason ?? stock.rejection_reason ?? "No reason provided."}
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          {moat.red_flags.length > 0 && (
+            <div>
+              <p className="text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--reject)" }}>Red Flags</p>
+              {moat.red_flags.map((f, i) => (
+                <div key={i} className="flex gap-1.5 text-xs mb-1" style={{ color: "var(--muted)" }}>
+                  <span style={{ color: "var(--reject)", flexShrink: 0 }}>−</span>{f}
+                </div>
+              ))}
+            </div>
+          )}
+          {moat.green_flags.length > 0 && (
+            <div>
+              <p className="text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--pass)" }}>Green Flags</p>
+              {moat.green_flags.map((f, i) => (
+                <div key={i} className="flex gap-1.5 text-xs mb-1" style={{ color: "var(--muted)" }}>
+                  <span style={{ color: "var(--pass)", flexShrink: 0 }}>+</span>{f}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="space-y-3 pt-0.5">
+        <DetailMeta label="Moat Rating" value={
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm" style={{ color: moatColor[moat.competitive_moat] ?? "var(--muted)", backgroundColor: `color-mix(in srgb, ${moatColor[moat.competitive_moat] ?? "var(--muted)"} 12%, transparent)` }}>
+            {moat.competitive_moat}
+          </span>
+        } />
+        <DetailMeta label="Management Sentiment" value={
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm" style={{ color: scoreColor, backgroundColor: `color-mix(in srgb, ${scoreColor} 12%, transparent)` }}>
+            {score}/10
+          </span>
+        } />
+        <DetailMeta label="Management Quality" value={<span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{moat.management_quality}</span>} />
+        <DetailMeta label="Dividend" value={<span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{moat.dividend_sustainability}</span>} />
+        <DetailMeta label="Confidence" value={<span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{moat.confidence}</span>} />
+        {moat.moat_sources.length > 0 && (
+          <DetailMeta label="Moat Sources" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{moat.moat_sources.join(", ")}</span>} />
         )}
-      </td>
-      <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
-        {stock.current_price > 0 ? `$${stock.current_price.toFixed(2)}` : "—"}
-      </td>
-      <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
-        {stock.valuation?.avg_fair_value ? `$${stock.valuation.avg_fair_value.toFixed(2)}` : "—"}
-      </td>
-      <td className="px-4 py-3 text-right">
-        {stock.valuation?.margin_of_safety != null ? <RejMosBadge mos={stock.valuation.margin_of_safety} verdict={stock.valuation.verdict} /> : <span style={{ color: "var(--muted)" }}>—</span>}
-      </td>
-      <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
-        {stock.dividend_yield > 0 ? `${(stock.dividend_yield * 100).toFixed(2)}%` : "—"}
-      </td>
-      <td className="px-4 py-3">
-        <VerdictChip pass={stock.passes_quant} label={stock.passes_quant ? "✓ PASS" : "✗ FAIL"} />
-      </td>
-      <td className="px-4 py-3">
-        {stock.passes_quant
-          ? <VerdictChip pass={false} label="✗ FAILED" />
-          : <span className="font-mono text-xs" style={{ color: "var(--muted)" }}>—</span>
-        }
-      </td>
-      <td className="px-4 py-3 max-w-sm text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
-        {risk}
-      </td>
-    </tr>
+        <DetailMeta label="LLM Model" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{stock.llm_model ?? "—"}</span>} />
+      </div>
+    </div>
+  );
+}
+
+function DetailMeta({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>{label}</p>
+      <div className="mt-0.5">{value}</div>
+    </div>
   );
 }
 
