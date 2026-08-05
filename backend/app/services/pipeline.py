@@ -34,7 +34,7 @@ def get_status() -> dict:
     return {**_status, "log": list(_status["log"])}
 
 
-async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str | None = None) -> None:
+async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str | None = None, quant_preset: str = "default", valuation_preset: str = "balanced", trigger: str = "cron") -> None:
     global _status
 
     if _screen_lock.locked():
@@ -42,14 +42,14 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str 
         return
 
     async with _screen_lock:
-        run = await db.save_run(ScreeningRun(trigger="cron"))
+        run = await db.save_run(ScreeningRun(trigger=trigger))
         _status = {"running": True, "run_id": run.id, "current_ticker": None,
                    "processed": 0, "total": 0, "passed": 0, "failed": 0, "log": []}
         log.info("[Run %d] Starting full screen.", run.id)
         try:
             from app.screener.obb_client import UNIVERSE
             effective_universe = tickers if tickers else UNIVERSE
-            survivors, bypassed, quant_rejected = await run_wide_net(tickers=effective_universe)
+            survivors, bypassed, quant_rejected = await run_wide_net(tickers=effective_universe, quant_preset=quant_preset)
             await db.update_run(run.id, quant_survivors=len(survivors), total_screened=len(effective_universe))
             log.info("[Run %d] Quant survivors: %d, bypass: %d, rejected: %d.", run.id, len(survivors), len(bypassed), len(quant_rejected))
 
@@ -70,6 +70,8 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str 
                     quant_bypass=False,
                     passes_moat=False,
                     rejection_reason=stock.get("rejection_reason", "Failed quant filter"),
+                    quant_preset=quant_preset,
+                    valuation_preset=valuation_preset,
                 )
                 try:
                     rejected_analysis.valuation = await estimate_fair_value(
@@ -79,6 +81,7 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str 
                         eps=stock.get("eps", 0.0),
                         book_value_per_share=stock.get("book_value_per_share", 0.0),
                         market_cap=stock.get("market_cap", 0.0),
+                        valuation_preset=valuation_preset,
                     )
                 except Exception:
                     pass
@@ -98,7 +101,7 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str 
             final_passes = 0
             for stock in all_stocks:
                 _status["current_ticker"] = stock["ticker"]
-                analysis = await _analyze_one(run.id, stock, app, model)
+                analysis = await _analyze_one(run.id, stock, app, model, valuation_preset, quant_preset)
 
                 if analysis.rejection_reason and "No annual filing" in analysis.rejection_reason:
                     verdict = "NO_FILING"
@@ -132,7 +135,7 @@ async def run_screen(app: FastAPI, tickers: list[str] | None = None, model: str 
             _status["current_ticker"] = None
 
 
-async def _analyze_one(run_id: int, stock: dict, app: FastAPI, model: str | None = None) -> StockAnalysis:
+async def _analyze_one(run_id: int, stock: dict, app: FastAPI, model: str | None = None, valuation_preset: str = "balanced", quant_preset: str = "default") -> StockAnalysis:
     ticker = stock["ticker"]
     bypass = stock.get("quant_bypass", False)
     analysis = StockAnalysis(
@@ -148,6 +151,8 @@ async def _analyze_one(run_id: int, stock: dict, app: FastAPI, model: str | None
         fcf_per_share=stock.get("fcf_per_share", 0.0),
         passes_quant=not bypass,
         quant_bypass=bypass,
+        quant_preset=quant_preset,
+        valuation_preset=valuation_preset,
     )
 
     try:
@@ -158,6 +163,7 @@ async def _analyze_one(run_id: int, stock: dict, app: FastAPI, model: str | None
             eps=stock.get("eps", 0.0),
             book_value_per_share=stock.get("book_value_per_share", 0.0),
             market_cap=stock.get("market_cap", 0.0),
+            valuation_preset=valuation_preset,
         )
     except Exception as e:
         log.warning("[Run %d] Valuation failed for %s: %s", run_id, ticker, e)

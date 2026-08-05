@@ -8,6 +8,12 @@ Three-method fair value estimator:
 import math
 from app.screener import obb_client
 
+VALUATION_PRESETS: dict[str, dict[str, float]] = {
+    "balanced":  {"dcf": 0.334, "pfcf": 0.333, "graham": 0.333},
+    "dcf_heavy": {"dcf": 0.60,  "pfcf": 0.25,  "graham": 0.15},
+    "graham":    {"dcf": 0.10,  "pfcf": 0.20,  "graham": 0.70},
+}
+
 WACC = 0.09
 TERMINAL_GROWTH = 0.03
 PROJECTION_YEARS = 10
@@ -23,6 +29,7 @@ async def estimate_fair_value(
     eps: float,
     book_value_per_share: float,
     market_cap: float,
+    valuation_preset: str = "balanced",
 ) -> dict:
     point_estimates: dict[str, float] = {}
     methods_used: list[str] = []
@@ -68,8 +75,14 @@ async def estimate_fair_value(
     if not methods_used:
         return {"verdict": "INSUFFICIENT_DATA", "methods_used": []}
 
-    values = [v for k, v in point_estimates.items() if k.endswith("_value")]
-    avg = round(sum(values) / len(values), 2)
+    weights = VALUATION_PRESETS.get(valuation_preset, VALUATION_PRESETS["balanced"])
+    key_map = {"dcf": "dcf_value", "pfcf": "pfcf_value", "graham": "graham_value"}
+    total_w = sum(weights.get(m, 0) for m in methods_used)
+    if total_w > 0:
+        avg = round(sum(point_estimates[key_map[m]] * weights.get(m, 0) / total_w for m in methods_used), 2)
+    else:
+        values = [point_estimates[key_map[m]] for m in methods_used]
+        avg = round(sum(values) / len(values), 2)
     mos = round((avg - current_price) / current_price * 100, 1)  # % positive = cheap
 
     if mos >= 20:

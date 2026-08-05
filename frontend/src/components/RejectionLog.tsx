@@ -260,6 +260,8 @@ function RejectionDetail({ moat, stock }: { moat: NonNullable<StockAnalysis["moa
           <DetailMeta label="Moat Sources" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{moat.moat_sources.join(", ")}</span>} />
         )}
         <DetailMeta label="LLM Model" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{stock.llm_model ?? "—"}</span>} />
+        <DetailMeta label="Quant Preset" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{stock.quant_preset ?? "default"}</span>} />
+        <DetailMeta label="Valuation Preset" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{(stock.valuation_preset ?? "balanced").replace("_", "-")}</span>} />
       </div>
     </div>
   );

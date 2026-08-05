@@ -225,6 +225,8 @@ function WatchDetail({ moat, stock }: { moat: NonNullable<StockAnalysis["moat"]>
         )}
         <WatchMeta label="No Quant Data" value={<span className="text-xs" style={{ color: "var(--warn)" }}>LLM analysis only</span>} />
         <WatchMeta label="LLM Model" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{stock.llm_model ?? "—"}</span>} />
+        <WatchMeta label="Quant Preset" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{stock.quant_preset ?? "default"}</span>} />
+        <WatchMeta label="Valuation Preset" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{(stock.valuation_preset ?? "balanced").replace("_", "-")}</span>} />
       </div>
     </div>
   );

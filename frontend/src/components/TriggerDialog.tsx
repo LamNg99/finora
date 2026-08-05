@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SUPPORTED_TICKERS } from "../data/tickers";
 import { AVAILABLE_MODELS, DEFAULT_MODEL } from "../data/models";
+import { QUANT_PRESETS, VALUATION_PRESETS, DEFAULT_QUANT_PRESET, DEFAULT_VALUATION_PRESET } from "../data/presets";
 
 interface Props {
   onClose: () => void;
@@ -10,6 +11,8 @@ interface Props {
 export default function TriggerDialog({ onClose, onStarted }: Props) {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState(DEFAULT_MODEL);
+  const [quantPreset, setQuantPreset] = useState(DEFAULT_QUANT_PRESET);
+  const [valuationPreset, setValuationPreset] = useState(DEFAULT_VALUATION_PRESET);
   const [modelOpen, setModelOpen] = useState(false);
   const modelRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
@@ -67,7 +70,7 @@ export default function TriggerDialog({ onClose, onStarted }: Props) {
       const res = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(apiKey ? { "X-API-Key": apiKey } : {}) },
-        body: JSON.stringify({ tickers: Array.from(selected), model }),
+        body: JSON.stringify({ tickers: Array.from(selected), model, quant_preset: quantPreset, valuation_preset: valuationPreset }),
       });
       if (res.status === 403) { setSubmitError("Invalid API key."); setSubmitting(false); return; }
       if (!res.ok) { setSubmitError("Failed to start screen."); setSubmitting(false); return; }
@@ -179,6 +182,60 @@ export default function TriggerDialog({ onClose, onStarted }: Props) {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Quant preset */}
+          <div className="shrink-0">
+            <label className="block text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--muted)" }}>
+              Quant Filter
+            </label>
+            <div className="flex gap-1.5">
+              {QUANT_PRESETS.map((p) => {
+                const active = quantPreset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setQuantPreset(p.id)}
+                    title={p.description}
+                    className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-sm border transition-colors"
+                    style={{
+                      backgroundColor: active ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--surface2)",
+                      borderColor: active ? "color-mix(in srgb, var(--accent) 40%, transparent)" : "var(--border)",
+                      color: active ? "var(--accent)" : "var(--muted)",
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Valuation preset */}
+          <div className="shrink-0">
+            <label className="block text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--muted)" }}>
+              Valuation Weight
+            </label>
+            <div className="flex gap-1.5">
+              {VALUATION_PRESETS.map((p) => {
+                const active = valuationPreset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setValuationPreset(p.id)}
+                    title={p.description}
+                    className="flex-1 text-xs font-semibold px-3 py-1.5 rounded-sm border transition-colors"
+                    style={{
+                      backgroundColor: active ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--surface2)",
+                      borderColor: active ? "color-mix(in srgb, var(--accent) 40%, transparent)" : "var(--border)",
+                      color: active ? "var(--accent)" : "var(--muted)",
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Selected chips */}

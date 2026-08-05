@@ -38,4 +38,6 @@ class StockAnalysis(SQLModel, table=True):
     moat_report: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     valuation: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     llm_model: Optional[str] = None
+    quant_preset: str = "default"
+    valuation_preset: str = "balanced"
     analyzed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

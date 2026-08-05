@@ -219,6 +219,8 @@ function ExpandedThesis({ moat, stock }: { moat: NonNullable<StockAnalysis["moat
         <MetaPair label="Dividend" value={moat.dividend_sustainability} />
         <MetaPair label="Confidence" value={moat.confidence} />
         <MetaPair label="LLM Model" value={stock.llm_model ?? "—"} />
+        <MetaPair label="Quant Preset" value={stock.quant_preset ?? "default"} />
+        <MetaPair label="Valuation Preset" value={(stock.valuation_preset ?? "balanced").replace("_", "-")} />
       </div>
     </div>
   );

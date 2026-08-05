@@ -81,7 +81,19 @@ export default function HistoryPage() {
                 }}
               >
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-mono text-xs font-bold" style={{ color: "var(--text)" }}>Run #{run.id}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold" style={{ color: "var(--text)" }}>Run #{run.id}</span>
+                    <span
+                      className="font-mono text-xs px-1.5 py-0.5 rounded-sm"
+                      style={{
+                        color: run.trigger === "manual" ? "var(--accent)" : "var(--muted)",
+                        backgroundColor: run.trigger === "manual" ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "color-mix(in srgb, var(--muted) 10%, transparent)",
+                        border: `1px solid ${run.trigger === "manual" ? "color-mix(in srgb, var(--accent) 20%, transparent)" : "var(--border)"}`,
+                      }}
+                    >
+                      {run.trigger}
+                    </span>
+                  </div>
                   <span
                     className="font-mono text-xs font-semibold flex items-center gap-1.5"
                     style={{ color: statusColor[run.status] ?? "var(--muted)" }}

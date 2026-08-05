@@ -44,6 +44,8 @@ export interface StockAnalysis {
   moat: MoatReport | null;
   valuation: Valuation | null;
   llm_model: string | null;
+  quant_preset: string;
+  valuation_preset: string;
   analyzed_at: string;
 }
 

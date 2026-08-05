@@ -13,8 +13,14 @@ THRESHOLDS = {
     "min_fcf_ps": 0.10,
 }
 
+QUANT_PRESETS: dict[str, dict] = {
+    "conservative": {"max_pe": 25.0,  "min_yield": 0.001, "max_yield": 0.10, "max_dte": 2.0,  "min_fcf_ps": 1.0},
+    "default":      {"max_pe": 60.0,  "min_yield": 0.001, "max_yield": 0.12, "max_dte": 5.0,  "min_fcf_ps": 0.10},
+    "aggressive":   {"max_pe": 100.0, "min_yield": 0.001, "max_yield": 0.15, "max_dte": 10.0, "min_fcf_ps": 0.01},
+}
 
-async def run_wide_net(tickers: list[str] | None = None) -> tuple[list[dict], list[dict], list[dict]]:
+
+async def run_wide_net(tickers: list[str] | None = None, quant_preset: str = "default") -> tuple[list[dict], list[dict], list[dict]]:
     """
     Returns (quant_survivors, bypass_candidates, quant_rejected).
     bypass_candidates: no FMP ratio data — sent straight to LLM.
@@ -24,6 +30,7 @@ async def run_wide_net(tickers: list[str] | None = None) -> tuple[list[dict], li
     if not candidates:
         return [], [], []
 
+    thresholds = QUANT_PRESETS.get(quant_preset, QUANT_PRESETS["default"])
     sem = asyncio.Semaphore(8)
     survivors: list[dict] = []
     bypassed: list[dict] = []
@@ -38,12 +45,12 @@ async def run_wide_net(tickers: list[str] | None = None) -> tuple[list[dict], li
                     log.info("[WideNet] %s → BYPASS (no FMP ratio data)", ticker)
                     bypassed.append(_build(c, m or {}, bypass=True))
                     return
-                ok, reason = _passes(m)
+                ok, reason = _passes(m, thresholds)
                 if ok:
                     log.info("[WideNet] %s → PASS quant", ticker)
                     survivors.append(_build(c, m, bypass=False))
                 else:
-                    log.info("[WideNet] %s → REJECT (%s)", ticker, reason)
+                    log.info("[WideNet] %s → REJECT (%s) [preset=%s]", ticker, reason, quant_preset)
                     quant_rejected.append(_build(c, m, bypass=False, rejection_reason=reason))
             except Exception as e:
                 log.warning("[WideNet] %s → ERROR: %s: %s\n%s", ticker, type(e).__name__, e, traceback.format_exc())
@@ -70,8 +77,9 @@ def _build(c: dict, m: dict, *, bypass: bool, rejection_reason: str = "") -> dic
     }
 
 
-def _passes(m: dict) -> tuple[bool, str]:
-    t = THRESHOLDS
+def _passes(m: dict, t: dict | None = None) -> tuple[bool, str]:
+    if t is None:
+        t = THRESHOLDS
     pe = m.get("pe_ratio") or 0
     yield_ = m.get("dividend_yield") or 0
     dte = m.get("debt_to_equity") or 999
