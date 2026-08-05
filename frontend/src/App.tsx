@@ -22,6 +22,15 @@ function useTheme() {
 export default function App() {
   const { dark, toggle } = useTheme();
   const [infoOpen, setInfoOpen] = useState(false);
+  const [totalVisits, setTotalVisits] = useState<number | null>(null);
+
+  useEffect(() => {
+    const visited = sessionStorage.getItem("finora_visited");
+    const ping = visited
+      ? Promise.resolve()
+      : fetch("/api/visit", { method: "POST" }).then(() => sessionStorage.setItem("finora_visited", "1"));
+    ping.then(() => fetch("/api/visits")).then((r) => r.json()).then((d) => setTotalVisits(d.total)).catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-dvh flex flex-col" style={{ backgroundColor: "var(--bg)" }}>
@@ -71,15 +80,15 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="border-t mt-16" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-screen-xl mx-auto px-6 py-5 flex items-start justify-between gap-10">
-          <p className="text-xs leading-relaxed" style={{ color: "var(--muted)", maxWidth: 680 }}>
-            <span className="font-mono font-semibold" style={{ color: "var(--text)" }}>For informational purposes only.</span>{" "}
-            Nothing here constitutes financial advice or a recommendation to buy or sell any security. Fair value estimates, moat ratings, and AI-generated theses are experimental outputs — always do your own research and consult a qualified adviser before making investment decisions.
-          </p>
-          <div className="shrink-0 text-right">
-            <p className="font-mono font-bold text-sm" style={{ color: "var(--accent)" }}>Finora</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+      <footer className="mt-16" style={{ borderTop: "1px solid var(--border)", backgroundColor: "var(--surface)" }}>
+        <div className="max-w-screen-xl mx-auto px-6">
+
+          {/* Brand · credit · visitors */}
+          <div className="flex items-center justify-between py-6">
+            <span className="font-mono font-bold text-sm tracking-tight" style={{ color: "var(--accent)" }}>
+              Finora
+            </span>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
               Engineered by{" "}
               <a
                 href="https://ngtlam.com"
@@ -90,8 +99,30 @@ export default function App() {
               >
                 Lam
               </a>
+            </span>
+            {totalVisits !== null ? (
+              <span className="flex items-center gap-1.5 text-xs font-mono tabular-nums" style={{ color: "var(--muted)" }}>
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "var(--pass)" }} />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: "var(--pass)" }} />
+                </span>
+                {totalVisits.toLocaleString()} {totalVisits === 1 ? "visitor" : "visitors"}
+              </span>
+            ) : <span />}
+          </div>
+
+          {/* Disclosure */}
+          <div className="py-5" style={{ borderTop: "1px solid var(--border)" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--muted)", textAlign: "justify", opacity: 0.75 }}>
+              <span className="font-mono font-semibold uppercase tracking-widest" style={{ opacity: 0.6, marginRight: "0.5rem" }}>
+                Disclosure —
+              </span>
+              Nothing here constitutes financial advice or a recommendation to buy or sell any security.
+              Fair value estimates, moat ratings, and AI-generated theses are experimental outputs —
+              always do your own research and consult a qualified adviser before making investment decisions.
             </p>
           </div>
+
         </div>
       </footer>
 

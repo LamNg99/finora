@@ -6,13 +6,15 @@ import RejectionLog from "@/components/RejectionLog";
 import WatchlistSection from "@/components/WatchlistSection";
 import TriggerDialog from "@/components/TriggerDialog";
 
+type Tab = "inbox" | "watchlist" | "rejections";
+
 export default function FortressPage() {
   const [latestRun, setLatestRun] = useState<ScreeningRun | null>(null);
   const [stocks, setStocks] = useState<StockAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-
+  const [tab, setTab] = useState<Tab>("inbox");
   useEffect(() => {
     load();
   }, []);
@@ -43,6 +45,12 @@ export default function FortressPage() {
   const rejected = stocks.filter((s) => !s.passes_moat && !s.quant_bypass);
   const watchlist = stocks.filter((s) => s.quant_bypass);
 
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: "inbox",      label: "AI Inbox",     count: passed.length },
+    { id: "watchlist",  label: "Watchlist",    count: watchlist.length },
+    { id: "rejections", label: "Rejections",   count: rejected.length },
+  ];
+
   return (
     <div>
       {/* Page header */}
@@ -65,26 +73,45 @@ export default function FortressPage() {
         </button>
       </div>
 
-      {/* 1 — KPI Cards */}
+      {/* KPI Cards */}
       <KPISection run={latestRun} loading={loading} />
 
-      {/* Divider with label */}
-      <SectionDivider label="AI Inbox — Fortress Assets" />
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 mb-6 border-b" style={{ borderColor: "var(--border)" }}>
+        {tabs.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors relative"
+              style={{ color: active ? "var(--accent)" : "var(--muted)" }}
+            >
+              {t.label}
+              <span
+                className="font-mono text-xs font-bold px-1.5 py-0.5 rounded-sm"
+                style={{
+                  color: active ? "var(--accent)" : "var(--muted)",
+                  backgroundColor: `color-mix(in srgb, ${active ? "var(--accent)" : "var(--muted)"} 12%, transparent)`,
+                }}
+              >
+                {t.count}
+              </span>
+              {active && (
+                <span
+                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
+                  style={{ backgroundColor: "var(--accent)" }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* 2 — AI Inbox */}
-      <AIInbox stocks={passed} />
-
-      {/* 3 — Watchlist (bypass stocks — LLM only) */}
-      {watchlist.length > 0 && (
-        <>
-          <SectionDivider label="Watchlist — LLM Only" />
-          <WatchlistSection stocks={watchlist} />
-        </>
-      )}
-
-      {/* 4 — Rejection Log */}
-      <SectionDivider label="Rejection Log" />
-      <RejectionLog stocks={rejected} />
+      {/* Tab panels */}
+      {tab === "inbox"      && <AIInbox stocks={passed} />}
+      {tab === "watchlist"  && <WatchlistSection stocks={watchlist.length > 0 ? watchlist : []} />}
+      {tab === "rejections" && <RejectionLog stocks={rejected} />}
 
       {dialogOpen && (
         <TriggerDialog
@@ -96,16 +123,6 @@ export default function FortressPage() {
   );
 }
 
-function SectionDivider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-3 mb-4">
-      <span className="text-xs font-mono font-semibold uppercase tracking-widest" style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>
-        {label}
-      </span>
-      <div className="flex-1 h-px" style={{ backgroundColor: "var(--border)" }} />
-    </div>
-  );
-}
 
 function Spinner() {
   return (

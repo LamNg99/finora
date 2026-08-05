@@ -3,6 +3,11 @@ from typing import Optional
 from sqlmodel import Field, SQLModel, JSON, Column
 
 
+class VisitorCount(SQLModel, table=True):
+    id: int = Field(default=1, primary_key=True)  # single-row counter
+    total: int = 0
+
+
 class ScreeningRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     triggered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

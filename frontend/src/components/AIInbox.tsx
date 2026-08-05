@@ -10,7 +10,7 @@ function fmtDate(iso: string) {
 }
 
 export default function AIInbox({ stocks }: { stocks: StockAnalysis[] }) {
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -19,8 +19,8 @@ export default function AIInbox({ stocks }: { stocks: StockAnalysis[] }) {
     [stocks]
   );
 
-  function setFilter(key: string, value: string) {
-    setFilters((f) => ({ ...f, [key]: value }));
+  function setFilter(key: string, values: string[]) {
+    setFilters((f) => ({ ...f, [key]: values }));
     setPage(1);
   }
 
@@ -28,9 +28,12 @@ export default function AIInbox({ stocks }: { stocks: StockAnalysis[] }) {
     return stocks.filter((s) => {
       if (search && !s.ticker.toLowerCase().includes(search.toLowerCase()) &&
           !s.company_name.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filters.moat && s.moat?.competitive_moat !== filters.moat) return false;
-      if (filters.verdict && s.valuation?.verdict !== filters.verdict) return false;
-      if (filters.sector && s.sector !== filters.sector) return false;
+      const moatF = filters.moat ?? [];
+      if (moatF.length > 0 && !moatF.includes(s.moat?.competitive_moat ?? "")) return false;
+      const verdictF = filters.verdict ?? [];
+      if (verdictF.length > 0 && !verdictF.includes(s.valuation?.verdict ?? "")) return false;
+      const sectorF = filters.sector ?? [];
+      if (sectorF.length > 0 && !sectorF.includes(s.sector)) return false;
       return true;
     });
   }, [stocks, filters, search]);
@@ -68,6 +71,7 @@ export default function AIInbox({ stocks }: { stocks: StockAnalysis[] }) {
             searchPlaceholder="Search ticker or company…"
             active={filters}
             onChange={setFilter}
+
             groups={[
               { key: "moat", label: "Moat", options: [
                 { label: "WIDE", value: "WIDE" },
@@ -79,7 +83,7 @@ export default function AIInbox({ stocks }: { stocks: StockAnalysis[] }) {
                 { label: "Overvalued", value: "OVERVALUED" },
               ]},
               ...(sectors.length > 1 ? [{
-                key: "sector", label: "Sector",
+                key: "sector", label: "Sector", dropdown: true,
                 options: sectors.map((s) => ({ label: s, value: s })),
               }] : []),
             ]}

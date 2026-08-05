@@ -10,26 +10,26 @@ function fmtDate(iso: string) {
 }
 
 export default function WatchlistSection({ stocks }: { stocks: StockAnalysis[] }) {
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  function setFilter(key: string, value: string) {
-    setFilters((f) => ({ ...f, [key]: value }));
+  function setFilter(key: string, values: string[]) {
+    setFilters((f) => ({ ...f, [key]: values }));
     setPage(1);
   }
 
   const filtered = useMemo(() => stocks.filter((s) => {
     if (search && !s.ticker.toLowerCase().includes(search.toLowerCase()) &&
         !s.company_name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filters.ai && (filters.ai === "PASS") !== s.passes_moat) return false;
-    if (filters.moat && s.moat?.competitive_moat !== filters.moat) return false;
+    const aiF = filters.ai ?? [];
+    if (aiF.length > 0 && !aiF.includes(s.passes_moat ? "PASS" : "FAIL")) return false;
+    const moatF = filters.moat ?? [];
+    if (moatF.length > 0 && !moatF.includes(s.moat?.competitive_moat ?? "")) return false;
     return true;
   }), [stocks, filters, search]);
 
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  if (stocks.length === 0) return null;
 
   return (
     <section className="mb-8">
@@ -56,6 +56,7 @@ export default function WatchlistSection({ stocks }: { stocks: StockAnalysis[] }
           searchPlaceholder="Search ticker or company…"
           active={filters}
           onChange={setFilter}
+
           groups={[
             { key: "ai", label: "AI", options: [
               { label: "PASS", value: "PASS" },
@@ -98,52 +99,143 @@ export default function WatchlistSection({ stocks }: { stocks: StockAnalysis[] }
 }
 
 function WatchRow({ stock, last }: { stock: StockAnalysis; last: boolean }) {
+  const [expanded, setExpanded] = useState(false);
   const moat = stock.moat;
   const val = stock.valuation;
+  const hasDetail = moat != null;
 
   return (
-    <tr style={{ borderBottom: last ? "none" : "1px solid var(--border)" }}>
-      <td className="px-4 py-3.5 font-mono font-bold text-sm" style={{ color: "var(--accent)" }}>
-        {stock.ticker}
-        <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
-          {fmtDate(stock.analyzed_at)}
-        </span>
-      </td>
-      <td className="px-4 py-3.5 text-sm" style={{ color: "var(--text)" }}>
-        {stock.company_name}
-        {stock.sector && (
-          <span className="block text-xs mt-0.5" style={{ color: "var(--muted)" }}>{stock.sector}</span>
-        )}
-      </td>
-      <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
-        {stock.current_price > 0 ? `$${stock.current_price.toFixed(2)}` : "—"}
-      </td>
-      <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
-        {val?.avg_fair_value ? `$${val.avg_fair_value.toFixed(2)}` : "—"}
-      </td>
-      <td className="px-4 py-3.5 text-right">
-        {val?.margin_of_safety != null ? <MosBadge mos={val.margin_of_safety} verdict={val.verdict} /> : <span style={{ color: "var(--muted)" }}>—</span>}
-      </td>
-      <td className="px-4 py-3.5 max-w-xs">
-        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "var(--muted)" }}>
-          {moat?.thesis_summary ?? "—"}
+    <>
+      <tr
+        style={{
+          borderBottom: last && !expanded ? "none" : "1px solid var(--border)",
+          backgroundColor: expanded ? "var(--surface2)" : undefined,
+          cursor: hasDetail ? "pointer" : undefined,
+        }}
+        onClick={hasDetail ? () => setExpanded((v) => !v) : undefined}
+      >
+        <td className="px-4 py-3.5 font-mono font-bold text-sm" style={{ color: "var(--accent)" }}>
+          {stock.ticker}
+          <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
+            {fmtDate(stock.analyzed_at)}
+          </span>
+        </td>
+        <td className="px-4 py-3.5 text-sm" style={{ color: "var(--text)" }}>
+          {stock.company_name}
+          {stock.sector && (
+            <span className="block text-xs mt-0.5" style={{ color: "var(--muted)" }}>{stock.sector}</span>
+          )}
+        </td>
+        <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+          {stock.current_price > 0 ? `$${stock.current_price.toFixed(2)}` : "—"}
+        </td>
+        <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+          {val?.avg_fair_value ? `$${val.avg_fair_value.toFixed(2)}` : "—"}
+        </td>
+        <td className="px-4 py-3.5 text-right">
+          {val?.margin_of_safety != null ? <MosBadge mos={val.margin_of_safety} verdict={val.verdict} /> : <span style={{ color: "var(--muted)" }}>—</span>}
+        </td>
+        <td className="px-4 py-3.5 max-w-xs">
+          <p className="text-xs leading-relaxed line-clamp-2" style={{ color: "var(--muted)" }}>
+            {moat?.thesis_summary ?? moat?.rejection_reason ?? "—"}
+          </p>
+        </td>
+        <td className="px-4 py-3.5 text-center">
+          {moat ? <MoatBadge moat={moat.competitive_moat} /> : <span style={{ color: "var(--muted)" }}>—</span>}
+        </td>
+        <td className="px-4 py-3.5 text-center">
+          <span
+            className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
+            style={{
+              color: stock.passes_moat ? "var(--pass)" : "var(--reject)",
+              backgroundColor: `color-mix(in srgb, ${stock.passes_moat ? "var(--pass)" : "var(--reject)"} 12%, transparent)`,
+            }}
+          >
+            {stock.passes_moat ? "✓ PASS" : "✗ FAIL"}
+          </span>
+        </td>
+      </tr>
+
+      {expanded && hasDetail && (
+        <tr style={{ borderBottom: last ? "none" : "1px solid var(--border)", backgroundColor: "var(--surface2)" }}>
+          <td colSpan={8} className="px-4 pb-5 pt-1">
+            <WatchDetail moat={moat!} stock={stock} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function WatchDetail({ moat, stock }: { moat: NonNullable<StockAnalysis["moat"]>; stock: StockAnalysis }) {
+  const score = moat.management_sentiment_score;
+  const scoreColor = score >= 8 ? "var(--pass)" : score >= 5 ? "var(--warn)" : "var(--reject)";
+  const moatColor: Record<string, string> = { WIDE: "var(--pass)", NARROW: "var(--warn)", NONE: "var(--reject)" };
+
+  return (
+    <div className="grid grid-cols-3 gap-6 pt-2">
+      <div className="col-span-2">
+        <p className="text-xs font-mono font-semibold uppercase tracking-widest mb-2" style={{ color: stock.passes_moat ? "var(--pass)" : "var(--reject)" }}>
+          {stock.passes_moat ? "Investment Thesis" : "Rejection Reason"}
         </p>
-      </td>
-      <td className="px-4 py-3.5 text-center">
-        {moat ? <MoatBadge moat={moat.competitive_moat} /> : <span style={{ color: "var(--muted)" }}>—</span>}
-      </td>
-      <td className="px-4 py-3.5 text-center">
-        <span
-          className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
-          style={{
-            color: stock.passes_moat ? "var(--pass)" : "var(--reject)",
-            backgroundColor: `color-mix(in srgb, ${stock.passes_moat ? "var(--pass)" : "var(--reject)"} 12%, transparent)`,
-          }}
-        >
-          {stock.passes_moat ? "✓ PASS" : "✗ FAIL"}
-        </span>
-      </td>
-    </tr>
+        <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--text)" }}>
+          {stock.passes_moat
+            ? (moat.thesis_summary ?? "—")
+            : (moat.rejection_reason ?? stock.rejection_reason ?? "No reason provided.")}
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          {moat.green_flags.length > 0 && (
+            <div>
+              <p className="text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--pass)" }}>Green Flags</p>
+              {moat.green_flags.map((f, i) => (
+                <div key={i} className="flex gap-1.5 text-xs mb-1" style={{ color: "var(--muted)" }}>
+                  <span style={{ color: "var(--pass)", flexShrink: 0 }}>+</span>{f}
+                </div>
+              ))}
+            </div>
+          )}
+          {moat.red_flags.length > 0 && (
+            <div>
+              <p className="text-xs font-mono font-semibold uppercase tracking-widest mb-1.5" style={{ color: "var(--reject)" }}>Red Flags</p>
+              {moat.red_flags.map((f, i) => (
+                <div key={i} className="flex gap-1.5 text-xs mb-1" style={{ color: "var(--muted)" }}>
+                  <span style={{ color: "var(--reject)", flexShrink: 0 }}>−</span>{f}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="space-y-3 pt-0.5">
+        <WatchMeta label="Moat Rating" value={
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm" style={{ color: moatColor[moat.competitive_moat] ?? "var(--muted)", backgroundColor: `color-mix(in srgb, ${moatColor[moat.competitive_moat] ?? "var(--muted)"} 12%, transparent)` }}>
+            {moat.competitive_moat}
+          </span>
+        } />
+        <WatchMeta label="Management Sentiment" value={
+          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm" style={{ color: scoreColor, backgroundColor: `color-mix(in srgb, ${scoreColor} 12%, transparent)` }}>
+            {score}/10
+          </span>
+        } />
+        <WatchMeta label="Management Quality" value={<span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{moat.management_quality}</span>} />
+        <WatchMeta label="Dividend" value={<span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{moat.dividend_sustainability}</span>} />
+        <WatchMeta label="Confidence" value={<span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{moat.confidence}</span>} />
+        {moat.moat_sources.length > 0 && (
+          <WatchMeta label="Moat Sources" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{moat.moat_sources.join(", ")}</span>} />
+        )}
+        <WatchMeta label="No Quant Data" value={<span className="text-xs" style={{ color: "var(--warn)" }}>LLM analysis only</span>} />
+        <WatchMeta label="LLM Model" value={<span className="text-xs" style={{ color: "var(--muted)" }}>{stock.llm_model ?? "—"}</span>} />
+      </div>
+    </div>
+  );
+}
+
+function WatchMeta({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>{label}</p>
+      <div className="mt-0.5">{value}</div>
+    </div>
   );
 }
 

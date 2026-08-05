@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse, Response
 
 import app.db.database as db
 from app.core.config import settings
-from app.routers import health, trigger, runs, stocks
+from app.routers import health, trigger, runs, stocks, visits
 from app.screener.sec_client import SECClient
 from app.screener.sedar_client import SedarClient
 
@@ -94,5 +94,6 @@ def create_app() -> FastAPI:
     app.include_router(trigger.router)
     app.include_router(runs.router)
     app.include_router(stocks.router)
+    app.include_router(visits.router)
 
     return app

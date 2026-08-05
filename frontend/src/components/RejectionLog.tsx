@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import * as Accordion from "@radix-ui/react-accordion";
 import type { StockAnalysis, Valuation } from "@/types";
 import FilterBar from "@/components/FilterBar";
 import Pagination from "@/components/Pagination";
@@ -11,7 +10,7 @@ function fmtDate(iso: string) {
 }
 
 export default function RejectionLog({ stocks }: { stocks: StockAnalysis[] }) {
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -20,95 +19,99 @@ export default function RejectionLog({ stocks }: { stocks: StockAnalysis[] }) {
     [stocks]
   );
 
-  function setFilter(key: string, value: string) {
-    setFilters((f) => ({ ...f, [key]: value }));
+  function setFilter(key: string, values: string[]) {
+    setFilters((f) => ({ ...f, [key]: values }));
     setPage(1);
   }
 
   const filtered = useMemo(() => stocks.filter((s) => {
     if (search && !s.ticker.toLowerCase().includes(search.toLowerCase()) &&
         !s.company_name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filters.sector && s.sector !== filters.sector) return false;
-    if (filters.verdict && s.valuation?.verdict !== filters.verdict) return false;
+    const sectorF = filters.sector ?? [];
+    if (sectorF.length > 0 && !sectorF.includes(s.sector)) return false;
+    const verdictF = filters.verdict ?? [];
+    if (verdictF.length > 0 && !verdictF.includes(s.valuation?.verdict ?? "")) return false;
+    const reasonF = filters.reason ?? [];
+    if (reasonF.includes("quant") && s.passes_quant) return false;
+    if (reasonF.includes("ai") && !s.passes_quant) return false;
     return true;
   }), [stocks, filters, search]);
 
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const count = stocks.length;
 
   return (
-    <Accordion.Root type="single" collapsible defaultValue={count > 0 ? "log" : undefined}>
-      <Accordion.Item value="log">
-        <Accordion.Trigger
-          className="w-full flex items-center justify-between px-5 py-3.5 rounded-sm border transition-colors group"
-          style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}
+    <section className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>Rejections</h2>
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+            Failed quant filter or LLM moat analysis. Click AI-analyzed rows to expand.
+          </p>
+        </div>
+        <span
+          className="font-mono text-xs px-2.5 py-1 rounded-full font-semibold"
+          style={{ backgroundColor: "color-mix(in srgb, var(--reject) 12%, transparent)", color: "var(--reject)" }}
         >
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Rejection Log</span>
-            <span
-              className="font-mono text-xs font-bold px-2 py-0.5 rounded-sm"
-              style={{ color: "var(--reject)", backgroundColor: "color-mix(in srgb, var(--reject) 12%, transparent)" }}
-            >
-              {count} {count === 1 ? "Rejection" : "Rejections"}
-            </span>
-            <span className="text-xs" style={{ color: "var(--muted)" }}>Failed quant filter or LLM moat analysis</span>
-          </div>
-          <ChevronIcon />
-        </Accordion.Trigger>
+          {filtered.length !== stocks.length ? `${filtered.length} / ${stocks.length}` : stocks.length}{" "}
+          {stocks.length === 1 ? "Rejection" : "Rejections"}
+        </span>
+      </div>
 
-        <Accordion.Content className="accordion-content">
-          {count === 0 ? (
-            <div className="px-5 py-8 text-center text-sm" style={{ color: "var(--muted)" }}>No rejections yet.</div>
-          ) : (
-            <div className="border-x border-b rounded-b-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-              <FilterBar
-                search={search}
-                onSearch={(v) => { setSearch(v); setPage(1); }}
-                searchPlaceholder="Search ticker or company…"
-                active={filters}
-                onChange={setFilter}
-                groups={[
-                  { key: "verdict", label: "Valuation", options: [
-                    { label: "Undervalued", value: "UNDERVALUED" },
-                    { label: "Fair", value: "FAIR" },
-                    { label: "Overvalued", value: "OVERVALUED" },
-                  ]},
-                  ...(sectors.length > 1 ? [{
-                    key: "sector", label: "Sector",
-                    options: sectors.map((s) => ({ label: s, value: s })),
-                  }] : []),
-                ]}
-              />
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                      <RTh>Ticker</RTh>
-                      <RTh>Company</RTh>
-                      <RTh align="right">Price</RTh>
-                      <RTh align="right">Fair Value</RTh>
-                      <RTh align="right">MoS</RTh>
-                      <RTh align="right">Div Yield</RTh>
-                      <RTh>Math</RTh>
-                      <RTh>AI Decision</RTh>
-                      <RTh>Primary Disruption Risk</RTh>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paged.length === 0 ? (
-                      <tr><td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: "var(--muted)" }}>No results match the current filters.</td></tr>
-                    ) : paged.map((s, i) => (
-                      <RejectionRow key={s.id} stock={s} last={i === paged.length - 1} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onChange={setPage} />
-            </div>
-          )}
-        </Accordion.Content>
-      </Accordion.Item>
-    </Accordion.Root>
+      <div className="rounded-sm border overflow-hidden" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface)" }}>
+        <FilterBar
+          search={search}
+          onSearch={(v) => { setSearch(v); setPage(1); }}
+          searchPlaceholder="Search ticker or company…"
+          active={filters}
+          onChange={setFilter}
+
+          groups={[
+            { key: "reason", label: "Rejected by", options: [
+              { label: "Quant", value: "quant" },
+              { label: "AI", value: "ai" },
+            ]},
+            { key: "verdict", label: "Valuation", options: [
+              { label: "Undervalued", value: "UNDERVALUED" },
+              { label: "Fair", value: "FAIR" },
+              { label: "Overvalued", value: "OVERVALUED" },
+            ]},
+            ...(sectors.length > 1 ? [{
+              key: "sector", label: "Sector", dropdown: true,
+              options: sectors.map((s) => ({ label: s, value: s })),
+            }] : []),
+          ]}
+        />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                <Th>Ticker</Th>
+                <Th>Company</Th>
+                <Th align="right">Price</Th>
+                <Th align="right">Fair Value</Th>
+                <Th align="right">MoS</Th>
+                <Th align="right">Div Yield</Th>
+                <Th>Math</Th>
+                <Th>AI Decision</Th>
+                <Th>Primary Disruption Risk</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm" style={{ color: "var(--muted)" }}>
+                    {stocks.length === 0 ? "No rejections yet." : "No results match the current filters."}
+                  </td>
+                </tr>
+              ) : paged.map((s, i) => (
+                <RejectionRow key={s.id} stock={s} last={i === paged.length - 1} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onChange={setPage} />
+      </div>
+    </section>
   );
 }
 
@@ -138,50 +141,47 @@ function RejectionRow({ stock, last }: { stock: StockAnalysis; last: boolean }) 
       <tr
         style={{
           borderBottom: last && !expanded ? "none" : "1px solid var(--border)",
-          backgroundColor: expanded ? "var(--surface2)" : "var(--surface)",
+          backgroundColor: expanded ? "var(--surface2)" : undefined,
           cursor: hasAiDetail ? "pointer" : undefined,
         }}
         onClick={hasAiDetail ? () => setExpanded((v) => !v) : undefined}
       >
-        <td className="px-4 py-3 font-mono font-bold text-sm" style={{ color: "var(--reject)" }}>
+        <td className="px-4 py-3.5 font-mono font-bold text-sm" style={{ color: "var(--reject)" }}>
           {stock.ticker}
           <span className="block text-xs mt-0.5 tabular-nums font-normal" style={{ color: "var(--muted)" }}>
             {fmtDate(stock.analyzed_at)}
           </span>
         </td>
-        <td className="px-4 py-3 text-sm" style={{ color: "var(--text)" }}>
+        <td className="px-4 py-3.5 text-sm" style={{ color: "var(--text)" }}>
           {stock.company_name}
           {stock.sector && (
-            <span className="block text-xs" style={{ color: "var(--muted)" }}>{stock.sector}</span>
+            <span className="block text-xs mt-0.5" style={{ color: "var(--muted)" }}>{stock.sector}</span>
           )}
         </td>
-        <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+        <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
           {stock.current_price > 0 ? `$${stock.current_price.toFixed(2)}` : "—"}
         </td>
-        <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+        <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
           {stock.valuation?.avg_fair_value ? `$${stock.valuation.avg_fair_value.toFixed(2)}` : "—"}
         </td>
-        <td className="px-4 py-3 text-right">
-          {stock.valuation?.margin_of_safety != null ? <RejMosBadge mos={stock.valuation.margin_of_safety} verdict={stock.valuation.verdict} /> : <span style={{ color: "var(--muted)" }}>—</span>}
+        <td className="px-4 py-3.5 text-right">
+          {stock.valuation?.margin_of_safety != null
+            ? <MosBadge mos={stock.valuation.margin_of_safety} verdict={stock.valuation.verdict} />
+            : <span style={{ color: "var(--muted)" }}>—</span>}
         </td>
-        <td className="px-4 py-3 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
+        <td className="px-4 py-3.5 text-right font-mono tabular-nums text-sm" style={{ color: "var(--text)" }}>
           {stock.dividend_yield > 0 ? `${(stock.dividend_yield * 100).toFixed(2)}%` : "—"}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3.5">
           <VerdictChip pass={stock.passes_quant} label={stock.passes_quant ? "✓ PASS" : "✗ FAIL"} />
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3.5">
           {stock.passes_quant ? (
             <div>
               <VerdictChip pass={false} label="✗ FAILED" />
               {moat && (
                 <span className="block text-xs mt-1" style={{ color: "var(--muted)" }}>
                   {moat.competitive_moat} moat · {moat.confidence} confidence
-                  {hasAiDetail && (
-                    <span className="ml-1" style={{ color: "var(--accent)" }}>
-                      {expanded ? "▲" : "▼"}
-                    </span>
-                  )}
                 </span>
               )}
             </div>
@@ -189,7 +189,7 @@ function RejectionRow({ stock, last }: { stock: StockAnalysis; last: boolean }) 
             <span className="font-mono text-xs" style={{ color: "var(--muted)" }}>—</span>
           )}
         </td>
-        <td className="px-4 py-3 max-w-sm text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
+        <td className="px-4 py-3.5 max-w-sm text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
           {risk}
         </td>
       </tr>
@@ -274,7 +274,7 @@ function DetailMeta({ label, value }: { label: string; value: React.ReactNode })
   );
 }
 
-function RTh({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
+function Th({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
   return (
     <th
       className="px-4 py-2.5 text-xs font-mono font-semibold uppercase tracking-widest"
@@ -291,7 +291,7 @@ function RTh({ children, align = "left" }: { children: React.ReactNode; align?: 
   );
 }
 
-function RejMosBadge({ mos, verdict }: { mos: number; verdict: Valuation["verdict"] }) {
+function MosBadge({ mos, verdict }: { mos: number; verdict: Valuation["verdict"] }) {
   const color =
     verdict === "UNDERVALUED" ? "var(--pass)"
     : verdict === "FAIR" ? "var(--warn)"
@@ -304,22 +304,5 @@ function RejMosBadge({ mos, verdict }: { mos: number; verdict: Valuation["verdic
     >
       {sign}{mos.toFixed(1)}%
     </span>
-  );
-}
-
-function ChevronIcon() {
-  return (
-    <svg
-      className="transition-transform duration-200 group-data-[state=open]:rotate-180"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      style={{ color: "var(--muted)", flexShrink: 0 }}
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
   );
 }

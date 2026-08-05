@@ -1,6 +1,7 @@
 import asyncio
+from datetime import datetime, timezone
 from sqlmodel import SQLModel, create_engine, Session, select
-from app.models.models import ScreeningRun, StockAnalysis
+from app.models.models import VisitorCount, ScreeningRun, StockAnalysis
 from app.core.config import settings
 
 engine = create_engine(settings.database_url, echo=False)
@@ -108,4 +109,27 @@ async def get_run_stocks(run_id: int) -> list[StockAnalysis]:
                 .where(StockAnalysis.run_id == run_id)
                 .order_by(StockAnalysis.passes_moat.desc())
             ).all())
+    return await _run(_get)
+
+
+async def increment_visits() -> int:
+    def _inc():
+        with Session(engine) as s:
+            row = s.get(VisitorCount, 1)
+            if row is None:
+                row = VisitorCount(id=1, total=1)
+            else:
+                row.total += 1
+            s.add(row)
+            s.commit()
+            s.refresh(row)
+            return row.total
+    return await _run(_inc)
+
+
+async def get_total_visits() -> int:
+    def _get():
+        with Session(engine) as s:
+            row = s.get(VisitorCount, 1)
+            return row.total if row else 0
     return await _run(_get)
