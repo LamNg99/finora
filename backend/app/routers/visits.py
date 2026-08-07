@@ -1,4 +1,5 @@
 """Visit tracking endpoints."""
+
 from fastapi import APIRouter
 
 import app.db.database as db

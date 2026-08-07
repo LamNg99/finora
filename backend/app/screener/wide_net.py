@@ -16,16 +16,25 @@ THRESHOLDS = {
 
 QUANT_PRESETS: dict[str, dict] = {
     "conservative": {
-        "max_pe": 25.0, "min_yield": 0.001, "max_yield": 0.10,
-        "max_dte": 2.0, "min_fcf_ps": 1.0,
+        "max_pe": 25.0,
+        "min_yield": 0.001,
+        "max_yield": 0.10,
+        "max_dte": 2.0,
+        "min_fcf_ps": 1.0,
     },
     "default": {
-        "max_pe": 60.0, "min_yield": 0.001, "max_yield": 0.12,
-        "max_dte": 5.0, "min_fcf_ps": 0.10,
+        "max_pe": 60.0,
+        "min_yield": 0.001,
+        "max_yield": 0.12,
+        "max_dte": 5.0,
+        "min_fcf_ps": 0.10,
     },
     "aggressive": {
-        "max_pe": 100.0, "min_yield": 0.001, "max_yield": 0.15,
-        "max_dte": 10.0, "min_fcf_ps": 0.01,
+        "max_pe": 100.0,
+        "min_yield": 0.001,
+        "max_yield": 0.15,
+        "max_dte": 10.0,
+        "min_fcf_ps": 0.01,
     },
 }
 
@@ -55,7 +64,9 @@ async def _evaluate_metrics(
     else:
         log.info(
             "[WideNet] %s → REJECT (%s) [preset=%s]",
-            ticker, reason, quant_preset,
+            ticker,
+            reason,
+            quant_preset,
         )
         quant_rejected.append(
             _build(c, m, bypass=False, rejection_reason=reason),
@@ -73,7 +84,9 @@ async def run_wide_net(
     quant_rejected: had data but failed quant thresholds — saved without LLM.
     """
     candidates = await obb_client.screen_equities(
-        tickers=tickers, market_cap_min=1_000_000_000, limit=300,
+        tickers=tickers,
+        market_cap_min=1_000_000_000,
+        limit=300,
     )
     if not candidates:
         return [], [], []
@@ -89,13 +102,19 @@ async def run_wide_net(
         async with sem:
             try:
                 await _evaluate_metrics(
-                    c, ticker, thresholds,
-                    (survivors, bypassed, quant_rejected), quant_preset,
+                    c,
+                    ticker,
+                    thresholds,
+                    (survivors, bypassed, quant_rejected),
+                    quant_preset,
                 )
             except Exception as e:  # ruff:ignore[blind-except]
                 log.warning(
                     "[WideNet] %s → ERROR: %s: %s\n%s",
-                    ticker, type(e).__name__, e, traceback.format_exc(),
+                    ticker,
+                    type(e).__name__,
+                    e,
+                    traceback.format_exc(),
                 )
 
     await asyncio.gather(*[evaluate(c) for c in candidates])
@@ -103,7 +122,11 @@ async def run_wide_net(
 
 
 def _build(
-    c: dict, m: dict, *, bypass: bool, rejection_reason: str = "",
+    c: dict,
+    m: dict,
+    *,
+    bypass: bool,
+    rejection_reason: str = "",
 ) -> dict:
     return {
         "ticker": c.get("symbol", ""),

@@ -1,4 +1,5 @@
 """Endpoints for listing historical screening runs and their stocks."""
+
 from fastapi import APIRouter
 
 import app.db.database as db

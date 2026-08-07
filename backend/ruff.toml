@@ -1,47 +1,50 @@
 line-length = 80
+# Prevent ruff from normalising its own config (preview mode rewrites codes → slugs)
+extend-exclude = ["ruff.toml"]
 
 [lint]
 extend-select = [
     # See: https://docs.astral.sh/ruff/rules
-    "E",  # All pycodestyle errors
-    "W",  # All pycodestyle warnings
-    "F",  # All pyflakes errors
-    "RUF", # All ruff errors
-    "A", # All flake8-builtins errors
-    "C",  # All flake8-comprehensions errors
-    "ANN", # All flake8-annotations errors
-    "N80", # Important pep8 naming conventions
-    "ASYNC", # All flake8-async errors
-    "B",  # All flake8-bugbear errors
-    "SIM",  # All flake8-simplify errors
-    "FBT", # All flake8-boolean-trap errors
-    "I",  # All isort errors
-    "DTZ", # All flake8-datetimez errors
-    "YTT", # Deprecated use of sys.version (flake8-2020)
-    "COM", # All flake8-commas errors
-    "EXE", # All flake8-executable errors
-    "LOG", # All flake8-logging errors
-    "G",  # All flake8-logging-format errors
-    "D", # All pydocstyle errors
-    "T", # All flake8-print errors
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "RUF",   # ruff-specific
+    "A",     # flake8-builtins
+    "C",     # flake8-comprehensions + mccabe
+    "ANN",   # flake8-annotations
+    "N80",   # pep8-naming (class/function/argument names)
+    "ASYNC", # flake8-async
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+    "FBT",   # flake8-boolean-trap
+    "I",     # isort
+    "DTZ",   # flake8-datetimez
+    "YTT",   # flake8-2020 (sys.version misuse)
+    "COM",   # flake8-commas
+    "EXE",   # flake8-executable
+    "LOG",   # flake8-logging
+    "G",     # flake8-logging-format
+    "D",     # pydocstyle
+    "T",     # flake8-debugger + flake8-print
     "RET503", # implicit-return
+    "RET504", # unnecessary-assignment
     "RET505", # superfluous-else-return
     "RET506", # superfluous-else-raise
     "RET507", # superfluous-else-continue
-    "RET508", # unnecessary-else-break
-    "SLF", # private-member-access
+    "RET508", # superfluous-else-break
+    "SLF",    # flake8-self (private member access)
     "PLW1514", # unspecified-encoding
 
-    # Following are security linters from flake8-bandit
-    "S", # unix-command-wildcard-injection
+    # Security (flake8-bandit)
+    "S",
 
     "ARG",
     "BLE",
     "C4",
-    "DOC501",
-    "DOC502",
+    "DOC501", # docstring-missing-exception
+    "DOC502", # docstring-extraneous-exception
     "FLY",
-    "ISC001",
+    "ISC001", # single-line-implicit-string-concatenation (see ignore below)
     "N",
     "PERF",
     "PIE",
@@ -50,51 +53,59 @@ extend-select = [
     "PLE",
     "PLR01",
     "PLR02",
-    "PLR0402",
-    "PLR0912",
-    "PLR0913",
-    "PLR1704",
-    "PLR1711",
-    "PLR1714",
-    "PLR1722",
-    "PLR1730",
-    "PLR1733",
-    "PLR1736",
-    "PLR2004",
-    "PLR2044",
-    "PLR5501",
-    "PLR6201",
-    "PLR6301",
+    "TID251",  # banned-api (manual-from-import)
+    "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments
+    "PLR1704", # redefined-argument-from-local
+    "PLR1711", # useless-return
+    "PLR1714", # repeated-equality-comparison
+    "PLR1722", # sys-exit-alias
+    "PLR1730", # if-stmt-min-max
+    "PLR1733", # unnecessary-dict-index-lookup
+    "PLR1736", # unnecessary-list-index-lookup
+    "PLR2004", # magic-value-comparison
+    "PLR2044", # empty-comment
+    "PLR5501", # collapsible-else-if
+    "PLR6201", # literal-membership
+    "PLR6301", # no-self-use
 
     "PLW",
     "PTH",
     "PYI",
     "UP",
     "FURB",
-    "PLE0704",
-    "B016",
+    "PLE0704", # misplaced-bare-raise
     "T20",
     "TC",
-    "TRY002",
-    "TRY004",
-    "TRY201",
-    "TRY203",
-    "TRY301",
-    "TRY400",
-    "TRY401",
-    "TRY002",
+    "TRY002",  # raise-vanilla-class
+    "TRY004",  # type-check-without-type-error
+    "TRY201",  # verbose-raise
+    "TRY203",  # useless-try-except
+    "TRY301",  # raise-within-try
+    "TRY400",  # error-instead-of-exception
+    "TRY401",  # verbose-log-message
 
     # Library-specific rules
-    "FAST", # All FastAPI errors
+    "FAST",  # FastAPI
 ]
 
 preview = true
+
+# COM812 and ISC001 conflict with ruff-format — formatter owns trailing commas
+# and implicit string concatenation style. Enabling both causes a check/format
+# loop where --fix and ruff-format undo each other.
+ignore = ["COM812", "ISC001"]
+
+[lint.isort]
+# Explicit first-party declaration so isort is consistent regardless of
+# working directory (pre-commit runs from repo root; manual runs from backend/).
+known-first-party = ["app"]
 
 [lint.per-file-ignores]
 # Enforce pydocstyle only in routers
 "!**/*router*.py" = ["D"]
 # types.py follows the project convention of using this filename for type
 # definitions; renaming it would break all existing imports across the codebase.
-"types.py" = ["A005"]
-# Rounters should not document exceptions
-"**/*router*.py" = ["DOC501"]
+"types.py" = ["A005"]   # stdlib-module-shadowing
+# Routers should not document exceptions
+"**/*router*.py" = ["DOC501"]  # docstring-missing-exception

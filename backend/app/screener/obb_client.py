@@ -23,19 +23,35 @@ _state: dict[str, bool] = {"cash_flow_unavailable": False}
 
 def _new_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
-        timeout=30.0, limits=httpx.Limits(max_keepalive_connections=10),
+        timeout=30.0,
+        limits=httpx.Limits(max_keepalive_connections=10),
     )
 
 
 UNIVERSE: list[str] = [
     # Technology
-    "AAPL", "MSFT", "GOOGL", "ORCL", "META",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "ORCL",
+    "META",
     # Semiconductors
-    "NVDA", "AMD", "INTC", "MU", "SNDK", "QCOM", "AVGO",
+    "NVDA",
+    "AMD",
+    "INTC",
+    "MU",
+    "SNDK",
+    "QCOM",
+    "AVGO",
     # Financials
-    "JPM", "V", "MA", "BRK.B",
+    "JPM",
+    "V",
+    "MA",
+    "BRK.B",
     # Consumer
-    "AMZN", "WMT", "COST",
+    "AMZN",
+    "WMT",
+    "COST",
 ]
 
 
@@ -44,7 +60,8 @@ def _p(**kwargs: object) -> dict[str, object]:
 
 
 async def _fetch_profile(
-    symbol: str, market_cap_min: float,
+    symbol: str,
+    market_cap_min: float,
 ) -> dict | None:
     """Fetch and filter the FMP profile for a single symbol."""
     async with _new_client() as client:
@@ -89,7 +106,8 @@ async def screen_equities(
 async def get_metrics(symbol: str) -> dict:
     async with _new_client() as client:
         r = await client.get(
-            f"{_BASE}/ratios-ttm", params=_p(symbol=symbol),
+            f"{_BASE}/ratios-ttm",
+            params=_p(symbol=symbol),
         )
     if r.status_code in {402, 403}:
         return {}
@@ -141,6 +159,5 @@ async def get_cash_flow(symbol: str, limit: int = 5) -> list[dict]:
         return []
     r.raise_for_status()
     return [
-        {"free_cash_flow": cf.get("freeCashFlow", 0)}
-        for cf in (r.json() or [])
+        {"free_cash_flow": cf.get("freeCashFlow", 0)} for cf in (r.json() or [])
     ]

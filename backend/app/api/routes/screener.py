@@ -1,4 +1,5 @@
 """Quantitative math-filter endpoint for a single ticker."""
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -8,12 +9,12 @@ from app.screener.dcf import calculate_dcf
 router = APIRouter(prefix="/screen", tags=["screener"])
 
 # Thresholds for the simple single-ticker verdict helpers
-PE_OVERVALUED_THRESHOLD = 25    # P/E above → OVERVALUED in quick screen
-PE_UNDERVALUED_THRESHOLD = 12   # P/E below → UNDERVALUED
-YIELD_OVERVALUED_THRESHOLD = 0.12   # above this is a distress signal
+PE_OVERVALUED_THRESHOLD = 25  # P/E above → OVERVALUED in quick screen
+PE_UNDERVALUED_THRESHOLD = 12  # P/E below → UNDERVALUED
+YIELD_OVERVALUED_THRESHOLD = 0.12  # above this is a distress signal
 YIELD_UNDERVALUED_THRESHOLD = 0.04  # at or above → UNDERVALUED
-DCF_MOS_THRESHOLD = 0.15        # min margin of safety for UNDERVALUED
-MIN_OVERVALUED_COUNT = 2        # votes needed to REJECT overall
+DCF_MOS_THRESHOLD = 0.15  # min margin of safety for UNDERVALUED
+MIN_OVERVALUED_COUNT = 2  # votes needed to REJECT overall
 
 
 class QuantVerdict(BaseModel):
@@ -64,9 +65,7 @@ async def run_math_filter(symbol: str) -> QuantVerdict:
     shares = profile.get("shares_outstanding", 0) or 0
     net_debt = metrics.get("net_debt", 0) or 0
     dcf = (
-        calculate_dcf(fcfs, current_price, shares, net_debt)
-        if shares
-        else None
+        calculate_dcf(fcfs, current_price, shares, net_debt) if shares else None
     )
 
     if dcf is None:

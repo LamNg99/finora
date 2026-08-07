@@ -40,7 +40,8 @@ class SECClient:
         return self._ticker_map.get(ticker.upper())
 
     async def get_latest_filing_url(
-        self, ticker: str,
+        self,
+        ticker: str,
     ) -> tuple[str, str] | None:
         """Return (url, form_type) for the best available filing.
 
@@ -62,7 +63,12 @@ class SECClient:
         docs = filings.get("primaryDocument", [])
 
         priority = {
-            "10-K": 0, "40-F": 1, "20-F": 2, "S-1/A": 3, "424B4": 4, "S-1": 5,
+            "10-K": 0,
+            "40-F": 1,
+            "20-F": 2,
+            "S-1/A": 3,
+            "424B4": 4,
+            "S-1": 5,
         }
         best: tuple[int, str, str] | None = None  # (priority, url, form)
 
@@ -93,7 +99,9 @@ class SECClient:
         return clean[:max_chars]
 
     async def get_10k_text(
-        self, ticker: str, max_chars: int = 60_000,
+        self,
+        ticker: str,
+        max_chars: int = 60_000,
     ) -> str | None:
         result = await self.get_latest_filing_url(ticker)
         if not result:

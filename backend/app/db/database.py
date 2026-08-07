@@ -28,6 +28,7 @@ async def save_run(run: ScreeningRun) -> ScreeningRun:
             s.commit()
             s.refresh(run)
             return run
+
     return await _run(_save)
 
 
@@ -40,6 +41,7 @@ async def update_run(run_id: int, **kwargs: object) -> None:
                     setattr(run, k, v)
                 s.add(run)
                 s.commit()
+
     await _run(_update)
 
 
@@ -50,11 +52,13 @@ async def save_analysis(analysis: StockAnalysis) -> StockAnalysis:
             s.commit()
             s.refresh(analysis)
             return analysis
+
     return await _run(_save)
 
 
 async def get_all_stocks(limit: int = 100) -> list[StockAnalysis]:
     """Latest analysis per ticker only."""
+
     def _get() -> list[StockAnalysis]:
         with Session(engine) as s:
             # Subquery: max analyzed_at per ticker
@@ -77,11 +81,13 @@ async def get_all_stocks(limit: int = 100) -> list[StockAnalysis]:
                 .limit(limit),
             ).all()
             return list(rows)
+
     return await _run(_get)
 
 
 async def get_passed_stocks() -> list[StockAnalysis]:
     """Latest analysis per ticker, passed only."""
+
     def _get() -> list[StockAnalysis]:
         with Session(engine) as s:
             latest = (
@@ -103,28 +109,35 @@ async def get_passed_stocks() -> list[StockAnalysis]:
                 .order_by(StockAnalysis.analyzed_at.desc()),
             ).all()
             return list(rows)
+
     return await _run(_get)
 
 
 async def get_runs(limit: int = 20) -> list[ScreeningRun]:
     def _get() -> list[ScreeningRun]:
         with Session(engine) as s:
-            return list(s.exec(
-                select(ScreeningRun)
-                .order_by(ScreeningRun.triggered_at.desc())
-                .limit(limit),
-            ).all())
+            return list(
+                s.exec(
+                    select(ScreeningRun)
+                    .order_by(ScreeningRun.triggered_at.desc())
+                    .limit(limit),
+                ).all(),
+            )
+
     return await _run(_get)
 
 
 async def get_run_stocks(run_id: int) -> list[StockAnalysis]:
     def _get() -> list[StockAnalysis]:
         with Session(engine) as s:
-            return list(s.exec(
-                select(StockAnalysis)
-                .where(StockAnalysis.run_id == run_id)
-                .order_by(StockAnalysis.passes_moat.desc()),
-            ).all())
+            return list(
+                s.exec(
+                    select(StockAnalysis)
+                    .where(StockAnalysis.run_id == run_id)
+                    .order_by(StockAnalysis.passes_moat.desc()),
+                ).all(),
+            )
+
     return await _run(_get)
 
 
@@ -140,6 +153,7 @@ async def increment_visits() -> int:
             s.commit()
             s.refresh(row)
             return row.total
+
     return await _run(_inc)
 
 
@@ -148,4 +162,5 @@ async def get_total_visits() -> int:
         with Session(engine) as s:
             row = s.get(VisitorCount, 1)
             return row.total if row else 0
+
     return await _run(_get)

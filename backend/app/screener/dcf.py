@@ -44,14 +44,13 @@ def calculate_dcf(  # ruff:ignore[too-many-arguments]
     projected = []
     fcf = base_fcf
     for _ in range(projection_years):
-        fcf *= (1 + growth_rate)
+        fcf *= 1 + growth_rate
         projected.append(fcf)
 
-    pv_fcfs = sum(
-        cf / (1 + wacc) ** (i + 1) for i, cf in enumerate(projected)
-    )
+    pv_fcfs = sum(cf / (1 + wacc) ** (i + 1) for i, cf in enumerate(projected))
     terminal_value = (
-        projected[-1] * (1 + terminal_growth_rate)
+        projected[-1]
+        * (1 + terminal_growth_rate)
         / (wacc - terminal_growth_rate)
     )
     pv_terminal = terminal_value / (1 + wacc) ** projection_years

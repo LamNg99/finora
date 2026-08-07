@@ -1,0 +1,36 @@
+repos:
+  # ── Standard file hygiene ───────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  # ── Backend: ruff (lint + format) ───────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.22
+    hooks:
+      - id: ruff
+        args: [--config, backend/ruff.toml, --fix, --unsafe-fixes]
+        files: ^backend/app/
+      - id: ruff-format
+        args: [--config, backend/ruff.toml]
+        files: ^backend/app/
+
+  # ── Frontend: prettier + eslint (local — uses project's node_modules) ────────
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: bash -c 'cd frontend && npm run format:check'
+        language: system
+        files: ^frontend/src/
+        pass_filenames: false
+      - id: eslint
+        name: eslint
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false

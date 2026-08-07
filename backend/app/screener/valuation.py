@@ -13,9 +13,9 @@ from app.screener import obb_client
 log = logging.getLogger("finora")
 
 VALUATION_PRESETS: dict[str, dict[str, float]] = {
-    "balanced":  {"dcf": 0.334, "pfcf": 0.333, "graham": 0.333},
+    "balanced": {"dcf": 0.334, "pfcf": 0.333, "graham": 0.333},
     "dcf_heavy": {"dcf": 0.60, "pfcf": 0.25, "graham": 0.15},
-    "graham":    {"dcf": 0.10, "pfcf": 0.20, "graham": 0.70},
+    "graham": {"dcf": 0.10, "pfcf": 0.20, "graham": 0.70},
 }
 
 WACC = 0.09
@@ -34,7 +34,9 @@ MOS_OVERVALUED_THRESHOLD = -15
 
 
 async def _compute_dcf(
-    ticker: str, current_price: float, market_cap: float,
+    ticker: str,
+    current_price: float,
+    market_cap: float,
 ) -> tuple[float, float] | None:
     """Return (dcf_per_share, cagr_pct), or None if not computable."""
     cf_history = await obb_client.get_cash_flow(ticker, limit=5)
@@ -92,14 +94,16 @@ async def estimate_fair_value(  # ruff:ignore[too-many-arguments]
     # ── Method 1: P/FCF Reversion ─────────────────────────────────────────────
     if fcf_per_share > 0:
         point_estimates["pfcf_value"] = round(
-            FAIR_PFCF_MULTIPLE * fcf_per_share, 2,
+            FAIR_PFCF_MULTIPLE * fcf_per_share,
+            2,
         )
         methods_used.append("pfcf")
 
     # ── Method 2: Graham Number ───────────────────────────────────────────────
     if eps > 0 and book_value_per_share > 0:
         point_estimates["graham_value"] = round(
-            math.sqrt(22.5 * eps * book_value_per_share), 2,
+            math.sqrt(22.5 * eps * book_value_per_share),
+            2,
         )
         methods_used.append("graham")
 
@@ -115,10 +119,13 @@ async def estimate_fair_value(  # ruff:ignore[too-many-arguments]
         return {"verdict": "INSUFFICIENT_DATA", "methods_used": []}
 
     weights = VALUATION_PRESETS.get(
-        valuation_preset, VALUATION_PRESETS["balanced"],
+        valuation_preset,
+        VALUATION_PRESETS["balanced"],
     )
     key_map = {
-        "dcf": "dcf_value", "pfcf": "pfcf_value", "graham": "graham_value",
+        "dcf": "dcf_value",
+        "pfcf": "pfcf_value",
+        "graham": "graham_value",
     }
     total_w = sum(weights.get(m, 0) for m in methods_used)
     if total_w > 0:

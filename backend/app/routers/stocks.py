@@ -1,4 +1,5 @@
 """Endpoints for querying the latest per-ticker stock analysis."""
+
 from fastapi import APIRouter
 
 import app.db.database as db

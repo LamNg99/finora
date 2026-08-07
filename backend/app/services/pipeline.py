@@ -54,21 +54,24 @@ async def run_screen(  # ruff:ignore[too-many-arguments]
     async with _screen_lock:
         run = await db.save_run(ScreeningRun(trigger=trigger))
         # Mutate in place — avoids `global` reassignment
-        _status.update({
-            "running": True,
-            "run_id": run.id,
-            "current_ticker": None,
-            "processed": 0,
-            "total": 0,
-            "passed": 0,
-            "failed": 0,
-        })
+        _status.update(
+            {
+                "running": True,
+                "run_id": run.id,
+                "current_ticker": None,
+                "processed": 0,
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+            },
+        )
         _status["log"] = []
         log.info("[Run %d] Starting full screen.", run.id)
         try:  # ruff:ignore[too-many-statements-in-try-clause]
             effective_universe = tickers or UNIVERSE
             survivors, bypassed, quant_rejected = await run_wide_net(
-                tickers=effective_universe, quant_preset=quant_preset,
+                tickers=effective_universe,
+                quant_preset=quant_preset,
             )
             await db.update_run(
                 run.id,
@@ -77,7 +80,10 @@ async def run_screen(  # ruff:ignore[too-many-arguments]
             )
             log.info(
                 "[Run %d] Quant survivors: %d, bypass: %d, rejected: %d.",
-                run.id, len(survivors), len(bypassed), len(quant_rejected),
+                run.id,
+                len(survivors),
+                len(bypassed),
+                len(quant_rejected),
             )
 
             # Save quant-rejected stocks immediately — no LLM needed
@@ -97,7 +103,8 @@ async def run_screen(  # ruff:ignore[too-many-arguments]
                     quant_bypass=False,
                     passes_moat=False,
                     rejection_reason=stock.get(
-                        "rejection_reason", "Failed quant filter",
+                        "rejection_reason",
+                        "Failed quant filter",
                     ),
                     quant_preset=quant_preset,
                     valuation_preset=valuation_preset,
@@ -109,19 +116,22 @@ async def run_screen(  # ruff:ignore[too-many-arguments]
                         fcf_per_share=stock.get("fcf_per_share", 0.0),
                         eps=stock.get("eps", 0.0),
                         book_value_per_share=stock.get(
-                            "book_value_per_share", 0.0,
+                            "book_value_per_share",
+                            0.0,
                         ),
                         market_cap=stock.get("market_cap", 0.0),
                         valuation_preset=valuation_preset,
                     )
                 await db.save_analysis(rejected_analysis)
                 _status["failed"] += 1
-                _status["log"].append({
-                    "ticker": stock["ticker"],
-                    "verdict": "QUANT_REJECT",
-                    "bypass": False,
-                    "reason": stock.get("rejection_reason"),
-                })
+                _status["log"].append(
+                    {
+                        "ticker": stock["ticker"],
+                        "verdict": "QUANT_REJECT",
+                        "bypass": False,
+                        "reason": stock.get("rejection_reason"),
+                    },
+                )
 
             all_stocks = survivors + bypassed
             _status["total"] = len(all_stocks) + len(quant_rejected)
@@ -131,7 +141,12 @@ async def run_screen(  # ruff:ignore[too-many-arguments]
             for stock in all_stocks:
                 _status["current_ticker"] = stock["ticker"]
                 analysis = await _analyze_one(
-                    run.id, stock, app, model, valuation_preset, quant_preset,
+                    run.id,
+                    stock,
+                    app,
+                    model,
+                    valuation_preset,
+                    quant_preset,
                 )
 
                 if (
@@ -148,18 +163,24 @@ async def run_screen(  # ruff:ignore[too-many-arguments]
                     _status["failed"] += 1
 
                 _status["processed"] += 1
-                _status["log"].append({
-                    "ticker": stock["ticker"],
-                    "verdict": verdict,
-                    "bypass": stock.get("quant_bypass", False),
-                    "reason": analysis.rejection_reason,
-                })
+                _status["log"].append(
+                    {
+                        "ticker": stock["ticker"],
+                        "verdict": verdict,
+                        "bypass": stock.get("quant_bypass", False),
+                        "reason": analysis.rejection_reason,
+                    },
+                )
 
             await db.update_run(
-                run.id, final_passes=final_passes, status="completed",
+                run.id,
+                final_passes=final_passes,
+                status="completed",
             )
             log.info(
-                "[Run %d] Done — %d fortress assets.", run.id, final_passes,
+                "[Run %d] Done — %d fortress assets.",
+                run.id,
+                final_passes,
             )
 
             if final_passes > 0:
@@ -264,7 +285,9 @@ async def _notify(run_id: int, count: int) -> None:
         try:
             async with httpx.AsyncClient() as client:
                 await client.post(
-                    settings.webhook_url, json={"text": msg}, timeout=10,
+                    settings.webhook_url,
+                    json={"text": msg},
+                    timeout=10,
                 )
         except Exception as e:  # ruff:ignore[blind-except]
             log.warning("Webhook failed: %s", e)

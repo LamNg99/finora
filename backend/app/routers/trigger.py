@@ -1,4 +1,5 @@
 """Manual-trigger endpoint — starts an on-demand screening run."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request

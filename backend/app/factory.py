@@ -70,7 +70,10 @@ def create_app() -> FastAPI:
     )
 
     allowed_hosts = [
-        "finoraquant.com", "www.finoraquant.com", "localhost", "127.0.0.1",
+        "finoraquant.com",
+        "www.finoraquant.com",
+        "localhost",
+        "127.0.0.1",
     ]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
@@ -83,7 +86,8 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def block_browser_navigation(
-        request: Request, call_next: RequestResponseEndpoint,
+        request: Request,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         if request.method == "OPTIONS" or request.url.path == "/health":
             return await call_next(request)
@@ -94,7 +98,8 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def security_headers(
-        request: Request, call_next: RequestResponseEndpoint,
+        request: Request,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"

@@ -18,22 +18,57 @@ log = logging.getLogger("finora")
 # Canadian tickers we route to SEDAR instead of SEC EDGAR
 CANADIAN_TICKERS: set[str] = {
     # Banks & Insurance
-    "RY", "TD", "BNS", "BMO", "CM", "NA",
-    "MFC", "SLF", "GWO",
+    "RY",
+    "TD",
+    "BNS",
+    "BMO",
+    "CM",
+    "NA",
+    "MFC",
+    "SLF",
+    "GWO",
     # Asset Management
-    "BAM", "BIP", "BEP",
+    "BAM",
+    "BIP",
+    "BEP",
     # Energy
-    "ENB", "TRP", "CNQ", "SU", "CVE", "IMO", "PPL",
+    "ENB",
+    "TRP",
+    "CNQ",
+    "SU",
+    "CVE",
+    "IMO",
+    "PPL",
     # Materials & Mining
-    "GOLD", "AEM", "WPM", "FNV", "KGC", "TECK", "CCO", "NTR",
+    "GOLD",
+    "AEM",
+    "WPM",
+    "FNV",
+    "KGC",
+    "TECK",
+    "CCO",
+    "NTR",
     # Technology
-    "SHOP", "CSU", "OTEX", "BB",
+    "SHOP",
+    "CSU",
+    "OTEX",
+    "BB",
     # Telecom
-    "BCE", "RCI", "TU", "QBR",
+    "BCE",
+    "RCI",
+    "TU",
+    "QBR",
     # Utilities
-    "FTS", "EMA", "AQN",
+    "FTS",
+    "EMA",
+    "AQN",
     # Consumer & Industrials
-    "ATD", "DOL", "WCN", "CP", "CNI", "WSP",
+    "ATD",
+    "DOL",
+    "WCN",
+    "CP",
+    "CNI",
+    "WSP",
 }
 
 _SEARCH_URL = "https://efts.sedarplus.ca/LATEST/search-index"
@@ -58,7 +93,9 @@ class SedarClient:
         )
 
     async def _search(
-        self, company_name: str, form_type: str,
+        self,
+        company_name: str,
+        form_type: str,
     ) -> dict | None:
         """Search SEDAR+ for the most recent filing of a given form type."""
         try:
@@ -81,12 +118,16 @@ class SedarClient:
         except Exception as e:  # ruff:ignore[blind-except]
             log.debug(
                 "SEDAR+ search error for %s / %s: %s",
-                company_name, form_type, e,
+                company_name,
+                form_type,
+                e,
             )
             return None
 
     async def _fetch_text(
-        self, url: str, max_chars: int = 60_000,
+        self,
+        url: str,
+        max_chars: int = 60_000,
     ) -> str | None:
         try:
             r = await self.client.get(url)
@@ -99,7 +140,10 @@ class SedarClient:
             return None
 
     async def get_aif_text(
-        self, ticker: str, company_name: str, max_chars: int = 60_000,
+        self,
+        ticker: str,
+        company_name: str,
+        max_chars: int = 60_000,
     ) -> str | None:
         """
         Fetch the most recent AIF (or fallback filing) for a Canadian issuer.
@@ -126,12 +170,16 @@ class SedarClient:
             if text:
                 log.info(
                     "SEDAR+ found %s for %s (%s)",
-                    form_type, ticker, company_name,
+                    form_type,
+                    ticker,
+                    company_name,
                 )
                 return f"[{form_type} — SEDAR+]\n\n" + text
 
         log.warning(
-            "SEDAR+: no filing found for %s (%s)", ticker, company_name,
+            "SEDAR+: no filing found for %s (%s)",
+            ticker,
+            company_name,
         )
         return None
 
