@@ -15,9 +15,6 @@ export default function FortressPage() {
   const [triggering, setTriggering] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("inbox");
-  useEffect(() => {
-    load();
-  }, []);
 
   async function load() {
     setLoading(true);
@@ -29,9 +26,17 @@ export default function FortressPage() {
       const runs: ScreeningRun[] = await runsRes.json();
       setLatestRun(runs[0] ?? null);
       setStocks(await stocksRes.json());
-    } catch (_) {}
+    } catch {
+      // network errors are silently swallowed; UI stays in last-known state
+    }
     setLoading(false);
   }
+
+  useEffect(() => {
+    load();
+    // load is stable (defined once per render); exhaustive-deps would require
+    // useCallback wrapping, which is out of scope for this fix.
+  }, []);
 
   function onScreenStarted() {
     setTriggering(true);
@@ -46,9 +51,9 @@ export default function FortressPage() {
   const watchlist = stocks.filter((s) => s.quant_bypass);
 
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: "inbox",      label: "AI Inbox",     count: passed.length },
-    { id: "watchlist",  label: "Watchlist",    count: watchlist.length },
-    { id: "rejections", label: "Rejections",   count: rejected.length },
+    { id: "inbox", label: "AI Inbox", count: passed.length },
+    { id: "watchlist", label: "Watchlist", count: watchlist.length },
+    { id: "rejections", label: "Rejections", count: rejected.length },
   ];
 
   return (
@@ -56,11 +61,15 @@ export default function FortressPage() {
       {/* Page header */}
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight mb-1" style={{ color: "var(--text)" }}>
+          <h1
+            className="text-2xl font-semibold tracking-tight mb-1"
+            style={{ color: "var(--text)" }}
+          >
             Screening Dashboard
           </h1>
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Automated value screener — quantitative baseline · LLM moat analysis · zero-noise output
+            Automated value screener — quantitative baseline · LLM moat analysis
+            · zero-noise output
           </p>
         </div>
         <button
@@ -69,7 +78,14 @@ export default function FortressPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-semibold transition-opacity disabled:opacity-50"
           style={{ backgroundColor: "var(--accent)", color: "#fff" }}
         >
-          {triggering ? <><Spinner />Running…</> : "Analyze Stocks"}
+          {triggering ? (
+            <>
+              <Spinner />
+              Running…
+            </>
+          ) : (
+            "Analyze Stocks"
+          )}
         </button>
       </div>
 
@@ -77,7 +93,10 @@ export default function FortressPage() {
       <KPISection run={latestRun} loading={loading} />
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 mb-6 border-b" style={{ borderColor: "var(--border)" }}>
+      <div
+        className="flex items-center gap-1 mb-6 border-b"
+        style={{ borderColor: "var(--border)" }}
+      >
         {tabs.map((t) => {
           const active = tab === t.id;
           return (
@@ -109,8 +128,10 @@ export default function FortressPage() {
       </div>
 
       {/* Tab panels */}
-      {tab === "inbox"      && <AIInbox stocks={passed} />}
-      {tab === "watchlist"  && <WatchlistSection stocks={watchlist.length > 0 ? watchlist : []} />}
+      {tab === "inbox" && <AIInbox stocks={passed} />}
+      {tab === "watchlist" && (
+        <WatchlistSection stocks={watchlist.length > 0 ? watchlist : []} />
+      )}
       {tab === "rejections" && <RejectionLog stocks={rejected} />}
 
       {dialogOpen && (
@@ -123,10 +144,17 @@ export default function FortressPage() {
   );
 }
 
-
 function Spinner() {
   return (
-    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <svg
+      className="animate-spin"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+    >
       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
     </svg>
   );

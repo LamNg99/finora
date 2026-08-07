@@ -5,18 +5,27 @@ Symbol is passed as a query param, not a path segment.
 """
 
 import asyncio
+import logging
+
 import httpx
+
 from app.core.config import settings
+
+log = logging.getLogger("finora")
 
 _BASE = "https://financialmodelingprep.com/stable"
 
-# Set to True on first 402/403 — endpoint is behind a paywall for this key.
-# All subsequent calls skip the request for the lifetime of the process.
-_cash_flow_unavailable = False
+# Mutable state — avoids `global` statements for the paywall sentinel.
+# cash_flow_unavailable is set True on first 402/403 and skips all
+# subsequent calls for the lifetime of the process.
+_state: dict[str, bool] = {"cash_flow_unavailable": False}
 
 
 def _new_client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(timeout=30.0, limits=httpx.Limits(max_keepalive_connections=10))
+    return httpx.AsyncClient(
+        timeout=30.0, limits=httpx.Limits(max_keepalive_connections=10),
+    )
+
 
 UNIVERSE: list[str] = [
     # Technology
@@ -30,8 +39,33 @@ UNIVERSE: list[str] = [
 ]
 
 
-def _p(**kwargs) -> dict:
+def _p(**kwargs: object) -> dict[str, object]:
     return {"apikey": settings.fmp_api_key, **kwargs}
+
+
+async def _fetch_profile(
+    symbol: str, market_cap_min: float,
+) -> dict | None:
+    """Fetch and filter the FMP profile for a single symbol."""
+    async with _new_client() as client:
+        r = await client.get(f"{_BASE}/profile", params=_p(symbol=symbol))
+    r.raise_for_status()
+    data = r.json()
+    if not data:
+        return None
+    p = data[0] if isinstance(data, list) else data
+    if p.get("isEtf") or p.get("isFund"):
+        return None
+    mc = p.get("marketCap") or 0
+    if mc and mc < market_cap_min:
+        return None
+    return {
+        "symbol": p.get("symbol", symbol),
+        "name": p.get("companyName", ""),
+        "sector": p.get("sector", ""),
+        "price": p.get("price", 0.0),
+        "market_cap": mc,
+    }
 
 
 async def screen_equities(
@@ -43,38 +77,21 @@ async def screen_equities(
 
     async def fetch_one(symbol: str) -> dict | None:
         try:
-            async with _new_client() as client:
-                r = await client.get(f"{_BASE}/profile", params=_p(symbol=symbol))
-            r.raise_for_status()
-            data = r.json()
-            if not data:
-                return None
-            p = data[0] if isinstance(data, list) else data
-            if p.get("isEtf") or p.get("isFund"):
-                return None
-            mc = p.get("marketCap") or 0
-            if mc and mc < market_cap_min:
-                return None
-            return {
-                "symbol": p.get("symbol", symbol),
-                "name": p.get("companyName", ""),
-                "sector": p.get("sector", ""),
-                "price": p.get("price", 0.0),
-                "market_cap": mc,
-            }
-        except Exception:
+            return await _fetch_profile(symbol, market_cap_min)
+        except Exception:  # ruff:ignore[blind-except]
+            log.debug("FMP profile error for %s", symbol)
             return None
 
     results = await asyncio.gather(*[fetch_one(s) for s in symbols])
     return [r for r in results if r is not None][:limit]
 
 
-
-
 async def get_metrics(symbol: str) -> dict:
     async with _new_client() as client:
-        r = await client.get(f"{_BASE}/ratios-ttm", params=_p(symbol=symbol))
-    if r.status_code in (402, 403):
+        r = await client.get(
+            f"{_BASE}/ratios-ttm", params=_p(symbol=symbol),
+        )
+    if r.status_code in {402, 403}:
         return {}
     r.raise_for_status()
     data = r.json()
@@ -112,16 +129,18 @@ async def get_profile(symbol: str) -> dict:
 
 
 async def get_cash_flow(symbol: str, limit: int = 5) -> list[dict]:
-    global _cash_flow_unavailable
-    if _cash_flow_unavailable:
+    if _state["cash_flow_unavailable"]:
         return []
     async with _new_client() as client:
         r = await client.get(
             f"{_BASE}/cash-flow-statement",
             params=_p(symbol=symbol, limit=limit),
         )
-    if r.status_code in (402, 403):
-        _cash_flow_unavailable = True
+    if r.status_code in {402, 403}:
+        _state["cash_flow_unavailable"] = True
         return []
     r.raise_for_status()
-    return [{"free_cash_flow": cf.get("freeCashFlow", 0)} for cf in (r.json() or [])]
+    return [
+        {"free_cash_flow": cf.get("freeCashFlow", 0)}
+        for cf in (r.json() or [])
+    ]

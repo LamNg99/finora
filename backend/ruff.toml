@@ -1,0 +1,100 @@
+line-length = 80
+
+[lint]
+extend-select = [
+    # See: https://docs.astral.sh/ruff/rules
+    "E",  # All pycodestyle errors
+    "W",  # All pycodestyle warnings
+    "F",  # All pyflakes errors
+    "RUF", # All ruff errors
+    "A", # All flake8-builtins errors
+    "C",  # All flake8-comprehensions errors
+    "ANN", # All flake8-annotations errors
+    "N80", # Important pep8 naming conventions
+    "ASYNC", # All flake8-async errors
+    "B",  # All flake8-bugbear errors
+    "SIM",  # All flake8-simplify errors
+    "FBT", # All flake8-boolean-trap errors
+    "I",  # All isort errors
+    "DTZ", # All flake8-datetimez errors
+    "YTT", # Deprecated use of sys.version (flake8-2020)
+    "COM", # All flake8-commas errors
+    "EXE", # All flake8-executable errors
+    "LOG", # All flake8-logging errors
+    "G",  # All flake8-logging-format errors
+    "D", # All pydocstyle errors
+    "T", # All flake8-print errors
+    "RET503", # implicit-return
+    "RET505", # superfluous-else-return
+    "RET506", # superfluous-else-raise
+    "RET507", # superfluous-else-continue
+    "RET508", # unnecessary-else-break
+    "SLF", # private-member-access
+    "PLW1514", # unspecified-encoding
+
+    # Following are security linters from flake8-bandit
+    "S", # unix-command-wildcard-injection
+
+    "ARG",
+    "BLE",
+    "C4",
+    "DOC501",
+    "DOC502",
+    "FLY",
+    "ISC001",
+    "N",
+    "PERF",
+    "PIE",
+    "PGH",
+    "PLC",
+    "PLE",
+    "PLR01",
+    "PLR02",
+    "PLR0402",
+    "PLR0912",
+    "PLR0913",
+    "PLR1704",
+    "PLR1711",
+    "PLR1714",
+    "PLR1722",
+    "PLR1730",
+    "PLR1733",
+    "PLR1736",
+    "PLR2004",
+    "PLR2044",
+    "PLR5501",
+    "PLR6201",
+    "PLR6301",
+
+    "PLW",
+    "PTH",
+    "PYI",
+    "UP",
+    "FURB",
+    "PLE0704",
+    "B016",
+    "T20",
+    "TC",
+    "TRY002",
+    "TRY004",
+    "TRY201",
+    "TRY203",
+    "TRY301",
+    "TRY400",
+    "TRY401",
+    "TRY002",
+
+    # Library-specific rules
+    "FAST", # All FastAPI errors
+]
+
+preview = true
+
+[lint.per-file-ignores]
+# Enforce pydocstyle only in routers
+"!**/*router*.py" = ["D"]
+# types.py follows the project convention of using this filename for type
+# definitions; renaming it would break all existing imports across the codebase.
+"types.py" = ["A005"]
+# Rounters should not document exceptions
+"**/*router*.py" = ["DOC501"]

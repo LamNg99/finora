@@ -21,7 +21,11 @@ export default function KPISection({ run, loading }: KPIProps) {
       <KPICard
         label="Last Scan"
         metric={loading ? "—" : date}
-        sub={run ? `${run.trigger === "cron" ? "Automated trigger" : "Manual trigger"}` : "No runs yet"}
+        sub={
+          run
+            ? `${run.trigger === "cron" ? "Automated trigger" : "Manual trigger"}`
+            : "No runs yet"
+        }
         accentColor="var(--accent)"
       />
       <KPICard

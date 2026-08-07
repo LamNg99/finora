@@ -19,22 +19,43 @@ export default function Pagination({ page, total, pageSize, onChange }: Props) {
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: "var(--border)" }}>
+    <div
+      className="flex items-center justify-between px-4 py-2.5 border-t"
+      style={{ borderColor: "var(--border)" }}
+    >
       <span className="text-xs tabular-nums" style={{ color: "var(--muted)" }}>
-        {Math.min((page - 1) * pageSize + 1, total)}–{Math.min(page * pageSize, total)} of {total}
+        {Math.min((page - 1) * pageSize + 1, total)}–
+        {Math.min(page * pageSize, total)} of {total}
       </span>
       <div className="flex items-center gap-1">
-        <PageBtn onClick={() => onChange(page - 1)} disabled={page === 1}>‹</PageBtn>
+        <PageBtn onClick={() => onChange(page - 1)} disabled={page === 1}>
+          ‹
+        </PageBtn>
         {pages.map((p, i) =>
           p === "…" ? (
-            <span key={`ellipsis-${i}`} className="w-7 text-center text-xs" style={{ color: "var(--muted)" }}>…</span>
+            <span
+              key={`ellipsis-${i}`}
+              className="w-7 text-center text-xs"
+              style={{ color: "var(--muted)" }}
+            >
+              …
+            </span>
           ) : (
-            <PageBtn key={p} onClick={() => onChange(p as number)} active={p === page}>
+            <PageBtn
+              key={p}
+              onClick={() => onChange(p as number)}
+              active={p === page}
+            >
               {p}
             </PageBtn>
-          )
+          ),
         )}
-        <PageBtn onClick={() => onChange(page + 1)} disabled={page === totalPages}>›</PageBtn>
+        <PageBtn
+          onClick={() => onChange(page + 1)}
+          disabled={page === totalPages}
+        >
+          ›
+        </PageBtn>
       </div>
     </div>
   );

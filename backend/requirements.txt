@@ -11,3 +11,4 @@ pydantic-settings==2.5.2
 sqlmodel==0.0.21
 aiosqlite==0.20.0
 apscheduler==3.10.4
+ruff>=0.15.0

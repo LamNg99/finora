@@ -28,22 +28,36 @@ export default function App() {
     const visited = sessionStorage.getItem("finora_visited");
     const ping = visited
       ? Promise.resolve()
-      : fetch("/api/visit", { method: "POST" }).then(() => sessionStorage.setItem("finora_visited", "1"));
-    ping.then(() => fetch("/api/visits")).then((r) => r.json()).then((d) => setTotalVisits(d.total)).catch(() => {});
+      : fetch("/api/visit", { method: "POST" }).then(() =>
+          sessionStorage.setItem("finora_visited", "1"),
+        );
+    ping
+      .then(() => fetch("/api/visits"))
+      .then((r) => r.json())
+      .then((d) => setTotalVisits(d.total))
+      .catch(() => {});
   }, []);
 
   return (
-    <div className="min-h-dvh flex flex-col" style={{ backgroundColor: "var(--bg)" }}>
+    <div
+      className="min-h-dvh flex flex-col"
+      style={{ backgroundColor: "var(--bg)" }}
+    >
       <header
         className="border-b sticky top-0 z-10 backdrop-blur-sm"
         style={{
           borderColor: "var(--border)",
-          backgroundColor: dark ? "rgba(8,12,20,0.92)" : "rgba(240,244,250,0.92)",
+          backgroundColor: dark
+            ? "rgba(8,12,20,0.92)"
+            : "rgba(240,244,250,0.92)",
         }}
       >
         <div className="max-w-screen-xl mx-auto px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-8">
-            <span className="font-mono font-bold text-base tracking-tight" style={{ color: "var(--accent)" }}>
+            <span
+              className="font-mono font-bold text-base tracking-tight"
+              style={{ color: "var(--accent)" }}
+            >
               Finora
             </span>
             <nav className="flex gap-6">
@@ -80,12 +94,20 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="mt-16" style={{ borderTop: "1px solid var(--border)", backgroundColor: "var(--surface)" }}>
+      <footer
+        className="mt-16"
+        style={{
+          borderTop: "1px solid var(--border)",
+          backgroundColor: "var(--surface)",
+        }}
+      >
         <div className="max-w-screen-xl mx-auto px-6">
-
           {/* Brand · credit · visitors */}
           <div className="flex items-center justify-between py-6">
-            <span className="font-mono font-bold text-sm tracking-tight" style={{ color: "var(--accent)" }}>
+            <span
+              className="font-mono font-bold text-sm tracking-tight"
+              style={{ color: "var(--accent)" }}
+            >
               Finora
             </span>
             <span className="text-xs" style={{ color: "var(--muted)" }}>
@@ -101,28 +123,54 @@ export default function App() {
               </a>
             </span>
             {totalVisits !== null ? (
-              <span className="flex items-center gap-1.5 text-xs font-mono tabular-nums" style={{ color: "var(--muted)" }}>
+              <span
+                className="flex items-center gap-1.5 text-xs font-mono tabular-nums"
+                style={{ color: "var(--muted)" }}
+              >
                 <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "var(--pass)" }} />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: "var(--pass)" }} />
+                  <span
+                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                    style={{ backgroundColor: "var(--pass)" }}
+                  />
+                  <span
+                    className="relative inline-flex rounded-full h-1.5 w-1.5"
+                    style={{ backgroundColor: "var(--pass)" }}
+                  />
                 </span>
-                {totalVisits.toLocaleString()} {totalVisits === 1 ? "visitor" : "visitors"}
+                {totalVisits.toLocaleString()}{" "}
+                {totalVisits === 1 ? "visitor" : "visitors"}
               </span>
-            ) : <span />}
+            ) : (
+              <span />
+            )}
           </div>
 
           {/* Disclosure */}
-          <div className="py-5" style={{ borderTop: "1px solid var(--border)" }}>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--muted)", textAlign: "justify", opacity: 0.75 }}>
-              <span className="font-mono font-semibold uppercase tracking-widest" style={{ opacity: 0.6, marginRight: "0.5rem" }}>
+          <div
+            className="py-5"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
+            <p
+              className="text-xs leading-relaxed"
+              style={{
+                color: "var(--muted)",
+                textAlign: "justify",
+                opacity: 0.75,
+              }}
+            >
+              <span
+                className="font-mono font-semibold uppercase tracking-widest"
+                style={{ opacity: 0.6, marginRight: "0.5rem" }}
+              >
                 Disclosure —
               </span>
-              Nothing here constitutes financial advice or a recommendation to buy or sell any security.
-              Fair value estimates, moat ratings, and AI-generated theses are experimental outputs —
-              always do your own research and consult a qualified adviser before making investment decisions.
+              Nothing here constitutes financial advice or a recommendation to
+              buy or sell any security. Fair value estimates, moat ratings, and
+              AI-generated theses are experimental outputs — always do your own
+              research and consult a qualified adviser before making investment
+              decisions.
             </p>
           </div>
-
         </div>
       </footer>
 
@@ -220,7 +268,9 @@ function InfoDialog({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
@@ -232,8 +282,13 @@ function InfoDialog({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        backgroundColor: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(2px)",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         ref={ref}
@@ -251,8 +306,15 @@ function InfoDialog({ onClose }: { onClose: () => void }) {
           style={{ borderColor: "var(--border)" }}
         >
           <div>
-            <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>Glossary</h2>
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>Plain-English explanations for every term Finora uses.</p>
+            <h2
+              className="text-base font-semibold"
+              style={{ color: "var(--text)" }}
+            >
+              Glossary
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+              Plain-English explanations for every term Finora uses.
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -276,8 +338,18 @@ function InfoDialog({ onClose }: { onClose: () => void }) {
               <div className="flex flex-col gap-4">
                 {section.items.map((item) => (
                   <div key={item.term}>
-                    <p className="text-sm font-semibold mb-1" style={{ color: "var(--text)" }}>{item.term}</p>
-                    <p className="text-xs leading-relaxed" style={{ color: "var(--muted)" }}>{item.def}</p>
+                    <p
+                      className="text-sm font-semibold mb-1"
+                      style={{ color: "var(--text)" }}
+                    >
+                      {item.term}
+                    </p>
+                    <p
+                      className="text-xs leading-relaxed"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      {item.def}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -291,12 +363,20 @@ function InfoDialog({ onClose }: { onClose: () => void }) {
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 
-function HeaderLink({ to, children }: { to: string; children: React.ReactNode }) {
+function HeaderLink({
+  to,
+  children,
+}: {
+  to: string;
+  children: React.ReactNode;
+}) {
   return (
     <NavLink
       to={to}
       className="text-sm font-medium transition-colors"
-      style={({ isActive }) => ({ color: isActive ? "var(--text)" : "var(--muted)" })}
+      style={({ isActive }) => ({
+        color: isActive ? "var(--text)" : "var(--muted)",
+      })}
     >
       {children}
     </NavLink>
@@ -307,9 +387,23 @@ function HeaderLink({ to, children }: { to: string; children: React.ReactNode })
 
 function InfoIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="8" strokeWidth="2.5" strokeLinecap="round" />
+      <line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="8"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
       <line x1="12" y1="12" x2="12" y2="16" />
     </svg>
   );
@@ -317,7 +411,14 @@ function InfoIcon() {
 
 function CloseIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
@@ -326,7 +427,14 @@ function CloseIcon() {
 
 function SunIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <circle cx="12" cy="12" r="5" />
       <line x1="12" y1="1" x2="12" y2="3" />
       <line x1="12" y1="21" x2="12" y2="23" />
@@ -342,7 +450,14 @@ function SunIcon() {
 
 function MoonIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );

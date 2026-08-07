@@ -5,13 +5,17 @@ so we fetch it directly from EDGAR's public archive.
 """
 
 import re
+from typing import ClassVar
+
 import httpx
-from typing import Optional
+
 from app.core.config import settings
 
 
 class SECClient:
-    def __init__(self):
+    _ticker_map: ClassVar[dict[str, str]] = {}
+
+    def __init__(self) -> None:
         self.base_url = "https://data.sec.gov"
         self.headers = {
             "User-Agent": settings.sec_user_agent,
@@ -19,29 +23,36 @@ class SECClient:
         }
         self.client = httpx.AsyncClient(timeout=60.0, headers=self.headers)
 
-    _ticker_map: dict[str, str] = {}
-
     async def _load_ticker_map(self) -> None:
         if self._ticker_map:
             return
-        resp = await self.client.get("https://www.sec.gov/files/company_tickers.json")
+        resp = await self.client.get(
+            "https://www.sec.gov/files/company_tickers.json",
+        )
         resp.raise_for_status()
         for entry in resp.json().values():
             t = entry.get("ticker", "").upper()
             if t:
                 self._ticker_map[t] = str(entry["cik_str"]).zfill(10)
 
-    async def get_cik(self, ticker: str) -> Optional[str]:
+    async def get_cik(self, ticker: str) -> str | None:
         await self._load_ticker_map()
         return self._ticker_map.get(ticker.upper())
 
-    async def get_latest_filing_url(self, ticker: str) -> Optional[tuple[str, str]]:
-        """Returns (url, form_type) for the best available filing: 10-K → S-1/A → S-1."""
+    async def get_latest_filing_url(
+        self, ticker: str,
+    ) -> tuple[str, str] | None:
+        """Return (url, form_type) for the best available filing.
+
+        Priority order: 10-K → 40-F → 20-F → S-1/A → 424B4 → S-1.
+        """
         cik = await self.get_cik(ticker)
         if not cik:
             return None
 
-        resp = await self.client.get(f"{self.base_url}/submissions/CIK{cik}.json")
+        resp = await self.client.get(
+            f"{self.base_url}/submissions/CIK{cik}.json",
+        )
         resp.raise_for_status()
         data = resp.json()
 
@@ -50,22 +61,27 @@ class SECClient:
         acc_nums = filings.get("accessionNumber", [])
         docs = filings.get("primaryDocument", [])
 
-        priority = {"10-K": 0, "40-F": 1, "20-F": 2, "S-1/A": 3, "424B4": 4, "S-1": 5}
-        best: Optional[tuple[int, str, str]] = None  # (priority, url, form)
+        priority = {
+            "10-K": 0, "40-F": 1, "20-F": 2, "S-1/A": 3, "424B4": 4, "S-1": 5,
+        }
+        best: tuple[int, str, str] | None = None  # (priority, url, form)
 
         for i, form in enumerate(forms):
             if form in priority:
                 rank = priority[form]
                 if best is None or rank < best[0]:
                     acc_no = acc_nums[i].replace("-", "")
-                    url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc_no}/{docs[i]}"
+                    url = (
+                        f"https://www.sec.gov/Archives/edgar/data/"
+                        f"{int(cik)}/{acc_no}/{docs[i]}"
+                    )
                     best = (rank, url, form)
                     if rank == 0:
                         break  # 10-K found, no need to keep scanning
 
         return (best[1], best[2]) if best else None
 
-    async def get_latest_10k_url(self, ticker: str) -> Optional[str]:
+    async def get_latest_10k_url(self, ticker: str) -> str | None:
         result = await self.get_latest_filing_url(ticker)
         return result[0] if result else None
 
@@ -76,7 +92,9 @@ class SECClient:
         clean = re.sub(r"\s+", " ", clean).strip()
         return clean[:max_chars]
 
-    async def get_10k_text(self, ticker: str, max_chars: int = 60_000) -> Optional[str]:
+    async def get_10k_text(
+        self, ticker: str, max_chars: int = 60_000,
+    ) -> str | None:
         result = await self.get_latest_filing_url(ticker)
         if not result:
             return None
@@ -86,5 +104,5 @@ class SECClient:
             text = f"[{form_type} FILING — not a 10-K]\n\n" + text
         return text
 
-    async def close(self):
+    async def close(self) -> None:
         await self.client.aclose()

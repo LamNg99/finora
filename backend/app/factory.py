@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
@@ -11,9 +12,15 @@ from fastapi.responses import RedirectResponse, Response
 
 import app.db.database as db
 from app.core.config import settings
-from app.routers import health, trigger, runs, stocks, visits
+from app.routers import health, runs, stocks, trigger, visits
 from app.screener.sec_client import SECClient
 from app.screener.sedar_client import SedarClient
+from app.services.pipeline import run_screen
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from starlette.middleware.base import RequestResponseEndpoint
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("finora")
@@ -22,9 +29,7 @@ scheduler = AsyncIOScheduler()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    from app.services.pipeline import run_screen
-
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     db.create_tables()
     app.state.sec = SECClient()
     app.state.sedar = SedarClient()
@@ -46,11 +51,12 @@ async def lifespan(app: FastAPI):
         settings.cron_minute,
     )
 
-    yield
-
-    scheduler.shutdown(wait=False)
-    await app.state.sec.close()
-    await app.state.sedar.close()
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
+        await app.state.sec.close()
+        await app.state.sedar.close()
 
 
 def create_app() -> FastAPI:
@@ -63,7 +69,9 @@ def create_app() -> FastAPI:
         openapi_url=None,
     )
 
-    allowed_hosts = ["finoraquant.com", "www.finoraquant.com", "localhost", "127.0.0.1"]
+    allowed_hosts = [
+        "finoraquant.com", "www.finoraquant.com", "localhost", "127.0.0.1",
+    ]
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
     app.add_middleware(
@@ -74,7 +82,9 @@ def create_app() -> FastAPI:
     )
 
     @app.middleware("http")
-    async def block_browser_navigation(request: Request, call_next):
+    async def block_browser_navigation(
+        request: Request, call_next: RequestResponseEndpoint,
+    ) -> Response:
         if request.method == "OPTIONS" or request.url.path == "/health":
             return await call_next(request)
         # Direct browser navigation sends Accept: text/html — redirect to SPA
@@ -83,7 +93,9 @@ def create_app() -> FastAPI:
         return await call_next(request)
 
     @app.middleware("http")
-    async def security_headers(request: Request, call_next):
+    async def security_headers(
+        request: Request, call_next: RequestResponseEndpoint,
+    ) -> Response:
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"

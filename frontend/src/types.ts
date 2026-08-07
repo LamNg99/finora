@@ -19,7 +19,7 @@ export interface Valuation {
   dcf_value?: number;
   dcf_cagr?: number;
   avg_fair_value: number;
-  margin_of_safety: number;  // % positive = undervalued
+  margin_of_safety: number; // % positive = undervalued
   verdict: "UNDERVALUED" | "FAIR" | "OVERVALUED" | "INSUFFICIENT_DATA";
   methods_used: string[];
 }

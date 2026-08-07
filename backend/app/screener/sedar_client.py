@@ -5,12 +5,12 @@ AIF is the Canadian equivalent of the SEC 10-K annual report.
 SEDAR+ public search: https://efts.sedarplus.ca/LATEST/search-index
 """
 
-import re
 import logging
+import re
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
+
 from app.core.config import settings
 
 log = logging.getLogger("finora")
@@ -40,11 +40,15 @@ _SEARCH_URL = "https://efts.sedarplus.ca/LATEST/search-index"
 _FILING_BASE = "https://www.sedarplus.ca"
 
 # Form types in priority order — AIF is the primary annual disclosure document
-_FORM_PRIORITY = ["Annual Information Form", "Annual Report", "Management's Discussion & Analysis"]
+_FORM_PRIORITY = [
+    "Annual Information Form",
+    "Annual Report",
+    "Management's Discussion & Analysis",
+]
 
 
 class SedarClient:
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = httpx.AsyncClient(
             timeout=60.0,
             headers={
@@ -53,7 +57,9 @@ class SedarClient:
             },
         )
 
-    async def _search(self, company_name: str, form_type: str) -> Optional[dict]:
+    async def _search(
+        self, company_name: str, form_type: str,
+    ) -> dict | None:
         """Search SEDAR+ for the most recent filing of a given form type."""
         try:
             r = await self.client.get(
@@ -68,28 +74,36 @@ class SedarClient:
                     "hits.hits._source.file_date": "desc",
                 },
             )
-            if r.status_code != 200:
+            if not r.is_success:
                 return None
             hits = r.json().get("hits", {}).get("hits", [])
             return hits[0] if hits else None
-        except Exception as e:
-            log.debug("SEDAR+ search error for %s / %s: %s", company_name, form_type, e)
+        except Exception as e:  # ruff:ignore[blind-except]
+            log.debug(
+                "SEDAR+ search error for %s / %s: %s",
+                company_name, form_type, e,
+            )
             return None
 
-    async def _fetch_text(self, url: str, max_chars: int = 60_000) -> Optional[str]:
+    async def _fetch_text(
+        self, url: str, max_chars: int = 60_000,
+    ) -> str | None:
         try:
             r = await self.client.get(url)
             r.raise_for_status()
             clean = re.sub(r"<[^>]+>", " ", r.text)
             clean = re.sub(r"\s+", " ", clean).strip()
             return clean[:max_chars] if clean else None
-        except Exception as e:
+        except Exception as e:  # ruff:ignore[blind-except]
             log.debug("SEDAR+ fetch error %s: %s", url, e)
             return None
 
-    async def get_aif_text(self, ticker: str, company_name: str, max_chars: int = 60_000) -> Optional[str]:
+    async def get_aif_text(
+        self, ticker: str, company_name: str, max_chars: int = 60_000,
+    ) -> str | None:
         """
-        Fetch the most recent AIF (or fallback annual filing) for a Canadian issuer.
+        Fetch the most recent AIF (or fallback filing) for a Canadian issuer.
+
         Returns parsed plain text, or None if nothing found.
         """
         for form_type in _FORM_PRIORITY:
@@ -110,11 +124,16 @@ class SedarClient:
 
             text = await self._fetch_text(doc_url, max_chars)
             if text:
-                log.info("SEDAR+ found %s for %s (%s)", form_type, ticker, company_name)
+                log.info(
+                    "SEDAR+ found %s for %s (%s)",
+                    form_type, ticker, company_name,
+                )
                 return f"[{form_type} — SEDAR+]\n\n" + text
 
-        log.warning("SEDAR+: no filing found for %s (%s)", ticker, company_name)
+        log.warning(
+            "SEDAR+: no filing found for %s (%s)", ticker, company_name,
+        )
         return None
 
-    async def close(self):
+    async def close(self) -> None:
         await self.client.aclose()

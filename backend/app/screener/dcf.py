@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional
+
+# Minimum FCF history data points required to compute a CAGR-based growth rate
+MIN_FCF_HISTORY = 3
 
 
 @dataclass
@@ -11,7 +13,7 @@ class DCFResult:
     growth_rate_used: float
 
 
-def calculate_dcf(
+def calculate_dcf(  # ruff:ignore[too-many-arguments]
     free_cash_flows: list[float],
     current_price: float,
     shares_outstanding: float,
@@ -19,7 +21,7 @@ def calculate_dcf(
     wacc: float = 0.10,
     terminal_growth_rate: float = 0.025,
     projection_years: int = 10,
-) -> Optional[DCFResult]:
+) -> DCFResult | None:
     if not free_cash_flows or shares_outstanding <= 0:
         return None
 
@@ -28,7 +30,11 @@ def calculate_dcf(
         return None
     base_fcf = sum(recent_fcfs) / len(recent_fcfs)
 
-    if len(free_cash_flows) >= 3 and free_cash_flows[-1] > 0 and free_cash_flows[0] > 0:
+    if (
+        len(free_cash_flows) >= MIN_FCF_HISTORY
+        and free_cash_flows[-1] > 0
+        and free_cash_flows[0] > 0
+    ):
         years = len(free_cash_flows) - 1
         cagr = (free_cash_flows[0] / free_cash_flows[-1]) ** (1 / years) - 1
         growth_rate = min(max(cagr * 0.80, 0.01), 0.15)
@@ -41,8 +47,13 @@ def calculate_dcf(
         fcf *= (1 + growth_rate)
         projected.append(fcf)
 
-    pv_fcfs = sum(cf / (1 + wacc) ** (i + 1) for i, cf in enumerate(projected))
-    terminal_value = projected[-1] * (1 + terminal_growth_rate) / (wacc - terminal_growth_rate)
+    pv_fcfs = sum(
+        cf / (1 + wacc) ** (i + 1) for i, cf in enumerate(projected)
+    )
+    terminal_value = (
+        projected[-1] * (1 + terminal_growth_rate)
+        / (wacc - terminal_growth_rate)
+    )
     pv_terminal = terminal_value / (1 + wacc) ** projection_years
 
     equity_value = (pv_fcfs + pv_terminal) - net_debt

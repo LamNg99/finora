@@ -9,7 +9,7 @@ interface FilterGroup {
   key: string;
   label: string;
   options: FilterOption[];
-  multi?: boolean;    // default true — allow selecting multiple values
+  multi?: boolean; // default true — allow selecting multiple values
   dropdown?: boolean; // render as a custom popover dropdown instead of pills
 }
 
@@ -23,8 +23,12 @@ interface Props {
 }
 
 export default function FilterBar({
-  groups, active, onChange,
-  search, onSearch, searchPlaceholder,
+  groups,
+  active,
+  onChange,
+  search,
+  onSearch,
+  searchPlaceholder,
 }: Props) {
   const hasActiveFilter =
     Object.values(active).some((v) => v.length > 0) ||
@@ -52,7 +56,10 @@ export default function FilterBar({
   return (
     <div
       className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b"
-      style={{ borderColor: "var(--border)", backgroundColor: "var(--surface2)" }}
+      style={{
+        borderColor: "var(--border)",
+        backgroundColor: "var(--surface2)",
+      }}
     >
       {/* Search */}
       {onSearch && (
@@ -83,7 +90,10 @@ export default function FilterBar({
             )}
           </div>
           {groups.length > 0 && (
-            <div className="w-px h-5 mx-2" style={{ backgroundColor: "var(--text)", opacity: 0.15 }} />
+            <div
+              className="w-px h-5 mx-2"
+              style={{ backgroundColor: "var(--text)", opacity: 0.15 }}
+            />
           )}
         </>
       )}
@@ -96,7 +106,10 @@ export default function FilterBar({
         return (
           <div key={g.key} className="flex items-center gap-1.5">
             {gi > 0 && (
-              <div className="w-px h-5 mx-2" style={{ backgroundColor: "var(--text)", opacity: 0.15 }} />
+              <div
+                className="w-px h-5 mx-2"
+                style={{ backgroundColor: "var(--text)", opacity: 0.15 }}
+              />
             )}
             <span
               className="text-xs font-mono uppercase tracking-widest"
@@ -122,7 +135,9 @@ export default function FilterBar({
                       className="text-xs font-mono font-semibold px-2 py-0.5 rounded-sm transition-colors"
                       style={{
                         color: isActive ? "#fff" : "var(--muted)",
-                        backgroundColor: isActive ? "var(--accent)" : "transparent",
+                        backgroundColor: isActive
+                          ? "var(--accent)"
+                          : "transparent",
                         border: `1px solid ${isActive ? "var(--accent)" : "var(--border)"}`,
                       }}
                     >
@@ -170,17 +185,19 @@ function DropdownFilter({
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  const label = selected.length === 0
-    ? "All"
-    : selected.length === 1
-      ? (options.find((o) => o.value === selected[0])?.label ?? selected[0])
-      : `${selected.length} selected`;
+  const label =
+    selected.length === 0
+      ? "All"
+      : selected.length === 1
+        ? (options.find((o) => o.value === selected[0])?.label ?? selected[0])
+        : `${selected.length} selected`;
 
   const isActive = selected.length > 0;
 
@@ -197,8 +214,12 @@ function DropdownFilter({
       >
         {label}
         <svg
-          width="10" height="10" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" strokeWidth="2.5"
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
           style={{
             opacity: 0.7,
             transform: open ? "rotate(180deg)" : "none",
@@ -240,17 +261,27 @@ function DropdownFilter({
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected)
-                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = "var(--surface2)";
+                    (
+                      e.currentTarget as HTMLButtonElement
+                    ).style.backgroundColor = "var(--surface2)";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = isSelected
-                    ? "color-mix(in srgb, var(--accent) 8%, transparent)"
-                    : "transparent";
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                    isSelected
+                      ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                      : "transparent";
                 }}
               >
                 <span>{opt.label}</span>
                 {isSelected && (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 )}

@@ -1,22 +1,28 @@
 import asyncio
-from datetime import datetime, timezone
-from sqlmodel import SQLModel, create_engine, Session, select
-from app.models.models import VisitorCount, ScreeningRun, StockAnalysis
+from collections.abc import Callable
+from typing import TypeVar
+
+from sqlalchemy import func
+from sqlmodel import Session, SQLModel, create_engine, select
+
 from app.core.config import settings
+from app.models.models import ScreeningRun, StockAnalysis, VisitorCount
 
 engine = create_engine(settings.database_url, echo=False)
+
+T = TypeVar("T")
 
 
 def create_tables() -> None:
     SQLModel.metadata.create_all(engine)
 
 
-async def _run(fn):
+async def _run(fn: Callable[[], T]) -> T:
     return await asyncio.get_event_loop().run_in_executor(None, fn)
 
 
 async def save_run(run: ScreeningRun) -> ScreeningRun:
-    def _save():
+    def _save() -> ScreeningRun:
         with Session(engine) as s:
             s.add(run)
             s.commit()
@@ -25,8 +31,8 @@ async def save_run(run: ScreeningRun) -> ScreeningRun:
     return await _run(_save)
 
 
-async def update_run(run_id: int, **kwargs) -> None:
-    def _update():
+async def update_run(run_id: int, **kwargs: object) -> None:
+    def _update() -> None:
         with Session(engine) as s:
             run = s.get(ScreeningRun, run_id)
             if run:
@@ -38,7 +44,7 @@ async def update_run(run_id: int, **kwargs) -> None:
 
 
 async def save_analysis(analysis: StockAnalysis) -> StockAnalysis:
-    def _save():
+    def _save() -> StockAnalysis:
         with Session(engine) as s:
             s.add(analysis)
             s.commit()
@@ -49,21 +55,26 @@ async def save_analysis(analysis: StockAnalysis) -> StockAnalysis:
 
 async def get_all_stocks(limit: int = 100) -> list[StockAnalysis]:
     """Latest analysis per ticker only."""
-    def _get():
+    def _get() -> list[StockAnalysis]:
         with Session(engine) as s:
             # Subquery: max analyzed_at per ticker
-            from sqlalchemy import func
             latest = (
-                select(StockAnalysis.ticker, func.max(StockAnalysis.analyzed_at).label("latest_at"))
+                select(
+                    StockAnalysis.ticker,
+                    func.max(StockAnalysis.analyzed_at).label("latest_at"),
+                )
                 .group_by(StockAnalysis.ticker)
                 .subquery()
             )
             rows = s.exec(
                 select(StockAnalysis)
-                .join(latest, (StockAnalysis.ticker == latest.c.ticker) &
-                              (StockAnalysis.analyzed_at == latest.c.latest_at))
+                .join(
+                    latest,
+                    (StockAnalysis.ticker == latest.c.ticker)
+                    & (StockAnalysis.analyzed_at == latest.c.latest_at),
+                )
                 .order_by(StockAnalysis.analyzed_at.desc())
-                .limit(limit)
+                .limit(limit),
             ).all()
             return list(rows)
     return await _run(_get)
@@ -71,49 +82,54 @@ async def get_all_stocks(limit: int = 100) -> list[StockAnalysis]:
 
 async def get_passed_stocks() -> list[StockAnalysis]:
     """Latest analysis per ticker, passed only."""
-    def _get():
+    def _get() -> list[StockAnalysis]:
         with Session(engine) as s:
-            from sqlalchemy import func
             latest = (
-                select(StockAnalysis.ticker, func.max(StockAnalysis.analyzed_at).label("latest_at"))
+                select(
+                    StockAnalysis.ticker,
+                    func.max(StockAnalysis.analyzed_at).label("latest_at"),
+                )
                 .group_by(StockAnalysis.ticker)
                 .subquery()
             )
             rows = s.exec(
                 select(StockAnalysis)
-                .join(latest, (StockAnalysis.ticker == latest.c.ticker) &
-                              (StockAnalysis.analyzed_at == latest.c.latest_at))
-                .where(StockAnalysis.passes_moat == True)
-                .order_by(StockAnalysis.analyzed_at.desc())
+                .join(
+                    latest,
+                    (StockAnalysis.ticker == latest.c.ticker)
+                    & (StockAnalysis.analyzed_at == latest.c.latest_at),
+                )
+                .where(StockAnalysis.passes_moat)
+                .order_by(StockAnalysis.analyzed_at.desc()),
             ).all()
             return list(rows)
     return await _run(_get)
 
 
 async def get_runs(limit: int = 20) -> list[ScreeningRun]:
-    def _get():
+    def _get() -> list[ScreeningRun]:
         with Session(engine) as s:
             return list(s.exec(
                 select(ScreeningRun)
                 .order_by(ScreeningRun.triggered_at.desc())
-                .limit(limit)
+                .limit(limit),
             ).all())
     return await _run(_get)
 
 
 async def get_run_stocks(run_id: int) -> list[StockAnalysis]:
-    def _get():
+    def _get() -> list[StockAnalysis]:
         with Session(engine) as s:
             return list(s.exec(
                 select(StockAnalysis)
                 .where(StockAnalysis.run_id == run_id)
-                .order_by(StockAnalysis.passes_moat.desc())
+                .order_by(StockAnalysis.passes_moat.desc()),
             ).all())
     return await _run(_get)
 
 
 async def increment_visits() -> int:
-    def _inc():
+    def _inc() -> int:
         with Session(engine) as s:
             row = s.get(VisitorCount, 1)
             if row is None:
@@ -128,7 +144,7 @@ async def increment_visits() -> int:
 
 
 async def get_total_visits() -> int:
-    def _get():
+    def _get() -> int:
         with Session(engine) as s:
             row = s.get(VisitorCount, 1)
             return row.total if row else 0

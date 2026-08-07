@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-from typing import Optional
-from sqlmodel import Field, SQLModel, JSON, Column
+
+from sqlmodel import JSON, Column, Field, SQLModel
 
 
 class VisitorCount(SQLModel, table=True):
@@ -9,18 +9,20 @@ class VisitorCount(SQLModel, table=True):
 
 
 class ScreeningRun(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    triggered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: int | None = Field(default=None, primary_key=True)
+    triggered_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+    )
     trigger: str = "cron"
     total_screened: int = 0
     quant_survivors: int = 0
     final_passes: int = 0
     status: str = "running"
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class StockAnalysis(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     run_id: int = Field(foreign_key="screeningrun.id")
     ticker: str
     company_name: str = ""
@@ -34,10 +36,12 @@ class StockAnalysis(SQLModel, table=True):
     passes_quant: bool = False
     quant_bypass: bool = False
     passes_moat: bool = False
-    rejection_reason: Optional[str] = None
-    moat_report: Optional[dict] = Field(default=None, sa_column=Column(JSON))
-    valuation: Optional[dict] = Field(default=None, sa_column=Column(JSON))
-    llm_model: Optional[str] = None
+    rejection_reason: str | None = None
+    moat_report: dict | None = Field(default=None, sa_column=Column(JSON))
+    valuation: dict | None = Field(default=None, sa_column=Column(JSON))
+    llm_model: str | None = None
     quant_preset: str = "default"
     valuation_preset: str = "balanced"
-    analyzed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    analyzed_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+    )

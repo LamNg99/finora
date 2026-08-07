@@ -1,11 +1,19 @@
+"""Quantitative math-filter endpoint for a single ticker."""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 
 from app.screener import obb_client
 from app.screener.dcf import calculate_dcf
 
 router = APIRouter(prefix="/screen", tags=["screener"])
+
+# Thresholds for the simple single-ticker verdict helpers
+PE_OVERVALUED_THRESHOLD = 25    # P/E above → OVERVALUED in quick screen
+PE_UNDERVALUED_THRESHOLD = 12   # P/E below → UNDERVALUED
+YIELD_OVERVALUED_THRESHOLD = 0.12   # above this is a distress signal
+YIELD_UNDERVALUED_THRESHOLD = 0.04  # at or above → UNDERVALUED
+DCF_MOS_THRESHOLD = 0.15        # min margin of safety for UNDERVALUED
+MIN_OVERVALUED_COUNT = 2        # votes needed to REJECT overall
 
 
 class QuantVerdict(BaseModel):
@@ -17,17 +25,21 @@ class QuantVerdict(BaseModel):
     yield_verdict: str
     debt_to_equity: float
     fcf_per_share: float
-    dcf_intrinsic_value: Optional[float]
-    dcf_margin_of_safety: Optional[float]
+    dcf_intrinsic_value: float | None
+    dcf_margin_of_safety: float | None
     dcf_verdict: str
     overall_verdict: str
 
 
-@router.get("/{symbol}", response_model=QuantVerdict)
-async def run_math_filter(symbol: str):
+@router.get("/{symbol}")
+async def run_math_filter(symbol: str) -> QuantVerdict:
     """
     Quantitative math filter for a single symbol.
-    Uses OpenBB → FMP for metrics and cash flow, then runs DCF.
+
+    Uses FMP for metrics and cash flow, then runs DCF.
+
+    Raises:
+        HTTPException: 404 if no FMP ratio data is available for the ticker.
     """
     ticker = symbol.upper()
 
@@ -44,18 +56,22 @@ async def run_math_filter(symbol: str):
     dte: float = metrics.get("debt_to_equity", 0.0) or 0.0
     fcf_ps: float = metrics.get("free_cash_flow_per_share", 0.0) or 0.0
 
-    pe_verdict = _pe_verdict(pe_ratio, metrics)
-    yield_verdict = _yield_verdict(div_yield, metrics)
+    pe_verdict = _pe_verdict(pe_ratio)
+    yield_verdict = _yield_verdict(div_yield)
 
     # DCF
     fcfs = [cf.get("free_cash_flow", 0) or 0 for cf in cash_flows_raw]
     shares = profile.get("shares_outstanding", 0) or 0
     net_debt = metrics.get("net_debt", 0) or 0
-    dcf = calculate_dcf(fcfs, current_price, shares, net_debt) if shares else None
+    dcf = (
+        calculate_dcf(fcfs, current_price, shares, net_debt)
+        if shares
+        else None
+    )
 
     if dcf is None:
         dcf_verdict = "UNKNOWN"
-    elif dcf.is_undervalued and dcf.margin_of_safety > 0.15:
+    elif dcf.is_undervalued and dcf.margin_of_safety > DCF_MOS_THRESHOLD:
         dcf_verdict = "UNDERVALUED"
     elif not dcf.is_undervalued:
         dcf_verdict = "OVERVALUED"
@@ -64,7 +80,7 @@ async def run_math_filter(symbol: str):
 
     verdicts = [pe_verdict, yield_verdict, dcf_verdict]
     overvalued = verdicts.count("OVERVALUED")
-    if overvalued >= 2:
+    if overvalued >= MIN_OVERVALUED_COUNT:
         overall = "REJECT"
     elif overvalued == 1:
         overall = "CAUTION"
@@ -87,23 +103,22 @@ async def run_math_filter(symbol: str):
     )
 
 
-def _pe_verdict(current_pe: float, _metrics: dict) -> str:
+def _pe_verdict(current_pe: float) -> str:
     if current_pe <= 0:
         return "UNKNOWN"
-    # FMP metrics endpoint returns multiple periods; use current vs a simple threshold
-    # A PE above 25 flags overvalued relative to typical value screens
-    if current_pe > 25:
+    # P/E above PE_OVERVALUED_THRESHOLD flags overvalued vs value screens
+    if current_pe > PE_OVERVALUED_THRESHOLD:
         return "OVERVALUED"
-    if current_pe < 12:
+    if current_pe < PE_UNDERVALUED_THRESHOLD:
         return "UNDERVALUED"
     return "FAIR"
 
 
-def _yield_verdict(current_yield: float, _metrics: dict) -> str:
+def _yield_verdict(current_yield: float) -> str:
     if current_yield == 0:
         return "NO_DIVIDEND"
-    if current_yield > 0.12:
+    if current_yield > YIELD_OVERVALUED_THRESHOLD:
         return "OVERVALUED"  # distress signal
-    if current_yield >= 0.04:
+    if current_yield >= YIELD_UNDERVALUED_THRESHOLD:
         return "UNDERVALUED"
     return "FAIR"
